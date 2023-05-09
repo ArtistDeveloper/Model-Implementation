@@ -6,19 +6,13 @@ class Lenet5(nn.Module):
 
         self.Conv1 = nn.Sequential(
             nn.Conv2d(in_channels=1, out_channels=6, kernel_size=5),
-            nn.Tanh()
-        )
-
-        self.Subsampling1 = nn.Sequential(
+            nn.Tanh(),
             nn.AvgPool2d(kernel_size=2, stride=2)
         )
 
         self.Conv2 = nn.Sequential(
             nn.Conv2d(in_channels=6, out_channels=16, kernel_size=5, stride=1),
-            nn.Tanh()
-        )
-
-        self.Subsampling2 = nn.Sequential(
+            nn.Tanh(),
             nn.AvgPool2d(kernel_size=2, stride=2)
         )
 
@@ -43,9 +37,7 @@ class Lenet5(nn.Module):
         
     def forward(self, x):
         x = self.Conv1(x)
-        x = self.Subsampling1(x)
         x = self.Conv2(x)
-        x = self.Subsampling2(x)
         x = self.Conv3(x)
         x = x.view(-1, 120)
         x = self.fc1(x)
