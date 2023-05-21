@@ -39,7 +39,9 @@ class Lenet5(nn.Module):
         x = self.Conv1(x)
         x = self.Conv2(x)
         x = self.Conv3(x)
-        x = x.view(-1, 120)
+        print("before x.shape: ", x.shape)
+        x = x.view(-1, 120) # 텐서를 2차원 크가로 변경하되 (?, 120)의 크기로 변경
+        print("before x.shape: ", x.shape)
         x = self.fc1(x)
         x = self.fc2(x)
 
