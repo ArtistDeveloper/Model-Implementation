@@ -68,19 +68,114 @@ def show(train_data: datasets.MNIST, val_data: datasets.MNIST):
     plt.imshow(npimg_tr, interpolation='nearest')
     plt.show()
 
-"""
----------------------helper function start---------------------
-
-"""
 
 
+# 배치당 performance metric 을 계산하는 함수 정의
+def metrics_batch(output, target):
+    pred = output.argmax(dim=1, keepdim=True)
+    corrects = pred.eq(target.view_as(pred)).sum().item()
+    return corrects
 
-"""
----------------------helper function end---------------------
 
-"""
+# 배치당 loss를 계산하는 함수를 정의
+def loss_batch(loss_func, output, target, opt=None):
+    loss = loss_func(output, target)
+    metric_b = metrics_batch(output, target)
+    if opt is not None:
+        opt.zero_grad()
+        loss.backward()
+        opt.step()
+    return loss.item(), metric_b
+
+
+# epoch당 loss와 performance metric을 계산하는 함수 정의
+def loss_epoch(model, loss_func, dataset_dl, sanity_check=False, opt=None):
+    running_loss = 0.0
+    running_metric = 0.0
+    len_data = len(dataset_dl.dataset)
+
+    for xb, yb in dataset_dl:
+        xb = xb.type(torch.float).to(device)
+        yb = yb.to(device)
+        output = model(xb)
+        loss_b, metric_b = loss_batch(loss_func, output, yb, opt)
+        running_loss += loss_b
+
+        if metric_b is not None:
+            running_metric += metric_b
+        
+        if sanity_check is True: # sanity_check가 True이면 1epoch만 학습합니다.
+            break
+
+    loss = running_loss / float(len_data)
+    metric = running_metric / float(len_data)
+    return loss, metric
+
+
+# train_val 함수 정의
+def train_val(model: Lenet5, params):
+    num_epochs = params['num_epochs']
+    loss_func = params['loss_func']
+    opt = params['optimizer']
+    train_loader = params['train_loader']
+    val_loader = params['val_loader']
+    sanity_check = params['sanity_check']
+    lr_scheduler = params['lr_scheduler']
+    path2weights = params['path2weights']
+
+    loss_history = {
+        'train': [],
+        'val': [],
+    }
+
+    metric_history = {
+        'train': [],
+        'val': [],
+    }
+
+    # best model parameter를 저장합니다.
+    # state_dict()를 통해 weight, bias등을 dict
+    best_model_wts = copy.deepcopy(model.state_dict())
+    best_loss = float('inf')
+
+    for epoch in range(num_epochs):
+        model.train() # train mode로 설정
+
+        current_lr = get_lr(opt) # lr스케줄러 사용해서 현재 lr가져오는 듯
+        print('Epoch {}/{}, current lr={}'.format(epoch, num_epochs-1, current_lr))
+        train_loss, train_metric = loss_epoch(model, loss_func, train_loader, sanity_check, opt)
+
+        loss_history['train'].append(train_loss)
+        metric_history['train'].append(train_metric)
+
+        model. eval() # eval mode로 설정
+        with torch.no_grad(): # autograd engine을 꺼버림. 즉, 자동으로 gradient를 트래킹하지 않음
+            val_loss, val_metric = loss_epoch(model, loss_func, val_loader, sanity_check)
+            loss_history['val'].append(val_loss)
+            metric_history['val'].append(val_metric)
+
+        if val_loss < best_loss:
+            best_loss = val_loss
+            best_model_wts = copy.deepcopy(model.state_dict())
+            torch.save(model.state_dict(), path2weights)
+            print('Copied best model weights')
+
+        lr_scheduler.step()
+
+        print('train loss: %.6f, dev loss: %.6f, accuracy: %.2f' %(train_loss, val_loss, 100*val_metric))
+        print('-' * 10)
+
+    model.load_state_dict(best_model_wts)
+    return model, loss_history, metric_history
+
+
 
 if __name__ == '__main__':
+    lr = 0.001
+
+    # cuda setting
+    device = set_device()
+
     data_transform = transforms.Compose([
         transforms.Resize((32, 32)),
         transforms.ToTensor(),
@@ -92,10 +187,52 @@ if __name__ == '__main__':
     val_data = datasets.MNIST(data_path, train=False, download=True, transform=data_transform) 
 
     # sample image visualization
-    show(train_data, val_data)
+    # show(train_data, val_data)
 
     # data loader
-    train_dl = DataLoader(train_data, batch_size=32, shuffle=True)
-    val_dl = DataLoader(val_data, batch_size=32, shuffle=False)
+    train_loader = DataLoader(train_data, batch_size=32, shuffle=True)
+    val_loader = DataLoader(val_data, batch_size=32, shuffle=False)
 
+    # pass the model to CUDA
+    model = Lenet5()
+    model.to(device)
+    print(model)
+    print(next(model.parameters()).device)
+    
+    # model summary
+    summary(model, input_size=(1, 32, 32))
+
+    # define loss func
+    loss_func = nn.CrossEntropyLoss(reduction='sum')
+
+    # optimizer
+    opt = optim.Adam(model.parameters(), lr=lr)
+    lr_scheduler = CosineAnnealingLR(opt, T_max=2, eta_min=1e-05)
+
+    # Create a folder to store the weights of the trained model
+    os.makedirs('./models', exist_ok=True)
+
+    # Set hyperparameters
+    params_train={
+    "num_epochs": 3,
+    "optimizer": opt,
+    "loss_func": loss_func,
+    "train_loader": train_loader,
+    "val_loader": val_loader,
+    "sanity_check": False,
+    "lr_scheduler": lr_scheduler,
+    "path2weights": "./models/LeNet-5.pt",
+    }
+    
+    # check state_dict() of model and optimizer
+    print("Model's state_dict")
+    for param_tensor in model.state_dict():
+        print(param_tensor, "\t", model.state_dict()[param_tensor].size())
+
+    print("Optimizer's state_dict")
+    for var_name in opt.state_dict():
+        print(var_name, "\t", opt.state_dict()[var_name])
+
+    # train the model
+    model, loss_hist, metric_hist = train_val(model, params_train)
     
