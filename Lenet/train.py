@@ -69,8 +69,7 @@ def show(train_data: datasets.MNIST, val_data: datasets.MNIST):
     plt.show()
 
 
-
-# 배치당 performance metric 을 계산하는 함수 정의
+# 배치당 performance metric을 계산하는 함수 정의
 def metrics_batch(output, target):
     pred = output.argmax(dim=1, keepdim=True)
     corrects = pred.eq(target.view_as(pred)).sum().item()
@@ -89,21 +88,21 @@ def loss_batch(loss_func, output, target, opt=None):
 
 
 # epoch당 loss와 performance metric을 계산하는 함수 정의
-def loss_epoch(model, loss_func, dataset_dl, sanity_check=False, opt=None):
+def loss_epoch(model: Lenet5, loss_func, dataset_loader, sanity_check=False, opt=None):
     running_loss = 0.0
     running_metric = 0.0
-    len_data = len(dataset_dl.dataset)
+    len_data = len(dataset_loader.dataset)
 
-    for xb, yb in dataset_dl:
-        xb = xb.type(torch.float).to(device)
-        yb = yb.to(device)
-        output = model(xb)
-        loss_b, metric_b = loss_batch(loss_func, output, yb, opt)
-        running_loss += loss_b
+    for xb, yb in dataset_loader:
+        xb = xb.type(torch.float).to(device) # x데이터 배치
+        yb = yb.to(device) # y데이터 배치
+        output = model(xb) # 입력에 대한 예측 수행
+        loss_bat, metric_bat = loss_batch(loss_func, output, yb, opt)
+        running_loss += loss_bat
 
-        if metric_b is not None:
-            running_metric += metric_b
-        
+        if metric_bat is not None: 
+            running_metric += metric_bat
+
         if sanity_check is True: # sanity_check가 True이면 1epoch만 학습합니다.
             break
 
