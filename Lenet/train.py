@@ -49,21 +49,23 @@ def show(train_data: datasets.MNIST, val_data: datasets.MNIST):
     x_train, y_train = train_data.data, train_data.targets
     x_val, y_val = val_data.data, train_data.targets
 
-    ## 차원을 추가하여 B*C*H*W 가 되도록 만듬
+    ## 차원을 추가하여 B*C*H*W 가 되도록 shape 변경
     if len(x_train.shape) == 3:
         x_train = x_train.unsqueeze(dim=1)
 
     if len(x_val.shape) == 3:
         x_val = x_val.unsqueeze(dim=1)
 
-    # images grid를 생성하고 출력
-    # 총 40개 이미지, 행당 8개 이미지를 출력
-    # x_train: (B x C x H x W) (60000, 1, 28, 28)
-    # x_train[:40]: (B x C x H x W) (40, 1, 28, 28)
+    """
+    images grid를 생성하고 출력
+    총 40개 이미지, 행당 8개 이미지를 출력
+    x_train: (B x C x H x W) (60000, 1, 28, 28)
+    x_train[:40]: (B x C x H x W) (40, 1, 28, 28)
+    """
     x_grid = utils.make_grid(x_train[:40], nrow=8, padding=2)
 
-    npimg: np = x_grid.numpy() # tensor를 numpy array로 변경합니다.
-    npimg_tr = npimg.transpose((1,2,0)) # C*H*W(0, 1, 2)를 H*W*C(1, 2, 0)로 변경합니다.
+    npimg: np = x_grid.numpy() # tensor를 numpy array로 변경
+    npimg_tr = npimg.transpose((1,2,0)) # C*H*W(0, 1, 2)를 H*W*C(1, 2, 0)로 변경
     
     plt.imshow(npimg_tr, interpolation='nearest')
     plt.show()
@@ -140,7 +142,7 @@ def train_val(model: Lenet5, params):
     for epoch in range(num_epochs):
         model.train() # train mode로 설정
 
-        current_lr = get_lr(opt) # lr스케줄러 사용해서 현재 lr가져오는 듯
+        current_lr = get_lr(opt)
         print('Epoch {}/{}, current lr={}'.format(epoch, num_epochs-1, current_lr))
         train_loss, train_metric = loss_epoch(model, loss_func, train_loader, sanity_check, opt)
 
@@ -172,7 +174,7 @@ def train_val(model: Lenet5, params):
 if __name__ == '__main__':
     lr = 0.001
 
-    # cuda setting
+    # cuda 세팅
     device = set_device()
 
     data_transform = transforms.Compose([
@@ -180,38 +182,37 @@ if __name__ == '__main__':
         transforms.ToTensor(),
     ])
 
-    # download datasets
-    data_path = './datasets'
-    train_data = datasets.MNIST(data_path, train=True, download=True, transform=data_transform) # train 매개변수는 학습용 또는 테스트용 데이터셋 여부를 지정
-    val_data = datasets.MNIST(data_path, train=False, download=True, transform=data_transform) 
+    # 데이터셋 다운로드
+    DATA_PATH = './datasets'
+    train_data = datasets.MNIST(DATA_PATH, train=True, download=True, transform=data_transform) # train 매개변수는 학습용 또는 테스트용 데이터셋 여부를 지정
+    val_data = datasets.MNIST(DATA_PATH, train=False, download=True, transform=data_transform) 
 
-    # sample image visualization
+    # 이미지 시각화 테스트
     # show(train_data, val_data)
 
-    # data loader
+    # 데이터 로더 객체 생성
     train_loader = DataLoader(train_data, batch_size=32, shuffle=True)
     val_loader = DataLoader(val_data, batch_size=32, shuffle=False)
 
-    # pass the model to CUDA
+    # CUDA로 모델 이동
     model = Lenet5()
     model.to(device)
-    print(model)
-    print(next(model.parameters()).device)
+    # print(model)
+    # print(next(model.parameters()).device)
     
-    # model summary
+    # 모델 summary 출력
     summary(model, input_size=(1, 32, 32))
 
-    # define loss func
+    # loss 함수 정의 및 optimizer 설정
     loss_func = nn.CrossEntropyLoss(reduction='sum')
-
-    # optimizer
     opt = optim.Adam(model.parameters(), lr=lr)
     lr_scheduler = CosineAnnealingLR(opt, T_max=2, eta_min=1e-05)
 
-    # Create a folder to store the weights of the trained model
+
+    # 학습된 모델의 가중치를 저장할 폴더를 만듭니다.
     os.makedirs('./models', exist_ok=True)
 
-    # Set hyperparameters
+    # 하이퍼파라미터 설정
     params_train={
     "num_epochs": 3,
     "optimizer": opt,
@@ -223,7 +224,7 @@ if __name__ == '__main__':
     "path2weights": "./models/LeNet-5.pt",
     }
     
-    # check state_dict() of model and optimizer
+    # 모델 및 옵티마이저의 state_dict() 확인
     print("Model's state_dict")
     for param_tensor in model.state_dict():
         print(param_tensor, "\t", model.state_dict()[param_tensor].size())
@@ -232,6 +233,6 @@ if __name__ == '__main__':
     for var_name in opt.state_dict():
         print(var_name, "\t", opt.state_dict()[var_name])
 
-    # train the model
+    # 모델 학습
     model, loss_hist, metric_hist = train_val(model, params_train)
     
