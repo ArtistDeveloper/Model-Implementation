@@ -96,8 +96,8 @@ def loss_epoch(model: Lenet5, loss_func, dataset_loader, sanity_check=False, opt
     len_data = len(dataset_loader.dataset)
 
     for xb, yb in dataset_loader:
-        xb = xb.type(torch.float).to(device) # x데이터 배치
-        yb = yb.to(device) # y데이터 배치
+        xb = xb.type(torch.float).to(device) # x데이터 batch
+        yb = yb.to(device) # y데이터 batch
         output = model(xb) # 입력에 대한 예측 수행
         loss_bat, metric_bat = loss_batch(loss_func, output, yb, opt)
         running_loss += loss_bat
@@ -214,7 +214,7 @@ if __name__ == '__main__':
 
     # 하이퍼파라미터 설정
     params_train={
-    "num_epochs": 3,
+    "num_epochs": 15,
     "optimizer": opt,
     "loss_func": loss_func,
     "train_loader": train_loader,
@@ -236,3 +236,14 @@ if __name__ == '__main__':
     # 모델 학습
     model, loss_hist, metric_hist = train_val(model, params_train)
     
+    # 시각화
+    epochs_list = list(range(params_train['num_epochs']))
+
+    plt.figure()
+    plt.plot(epochs_list, loss_hist['train'], 'b-', label='train_loss') # b-: blue minus
+    plt.plot(epochs_list, loss_hist['val'], 'r-', label='val_loss')# r-: red minus
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.ylim(0.5, 1) # y축 범위
+    plt.legend()
+    plt.show()
