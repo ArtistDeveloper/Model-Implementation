@@ -1,4 +1,5 @@
-# CNN-Practice
+# ImplementingModel
 
 모델 구현된 사항
 1. Lenet
+2. Resnet
