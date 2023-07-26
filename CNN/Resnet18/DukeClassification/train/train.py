@@ -1,4 +1,5 @@
-from CNN.Resnet18.DukeClassification.dataset.DukeBreastDataset import DukeDataset
+from CNN.Resnet18.DukeClassification.dataset.duke_breast_ataset import DukeDataset
+from CNN.Resnet18.DukeClassification.model.resnet18 import ResNet
 
 import torch
 import torchvision
@@ -38,7 +39,8 @@ def main():
     train_loader, validation_loader, test_loader = get_duke_dataloader(PNG_DIR, train_batchsize=200, eval_batchsize = 10)
     # print(len(train_loader.dataset), len(validation_loader.dataset), len(test_loader.dataset))
 
-    
+    # net = 
+
 
 
 
