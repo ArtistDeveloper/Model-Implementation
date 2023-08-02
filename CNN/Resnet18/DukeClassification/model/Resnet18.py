@@ -25,9 +25,7 @@ class BasicBlock(nn.Module):
              
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
-        print("Basicblock conv1, bn1: ", out.shape)
         out = self.bn2(self.conv2(out)) # 여기까지가 F(x)
-        print("Basicblock conv2, bn2: ", out.shape)
         out += self.shortcut(x) # F(x) + x
         out = F.relu(out)
         return out
@@ -61,17 +59,13 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         out = self.bn(self.conv1(x))
-        print("ResNet conv1, bn: ", out.shape)
-
         out = self.layer1(out)
         out = self.layer2(out)
         out = self.layer3(out)
         out = self.layer4(out)
         out = F.avg_pool2d(out, 16) # input tensor=512x16x16, kernel_size=16 -> 512x1x1
-        print("after avg_pool2d shape: ", out.shape)
         out = out.view(out.size(0), -1) # 512x1x1 -> 512x1
-        out = self.linear(out)
-        print("linear.shape: ", out.shape)
+        out = self.linear(out)        
         return out
 
 

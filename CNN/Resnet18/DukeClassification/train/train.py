@@ -9,11 +9,14 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
 from torch.utils.data import DataLoader
-
 import torchvision
 import torchvision.transforms as transforms
-
 from torchsummary import summary
+
+from tqdm import tqdm
+
+import matplotlib.pyplot as plt
+
 
 def get_duke_dataloader(png_dir, train_batchsize=200, eval_batchsize = 10):
     dataset = DukeDataset(png_data_dir=png_dir, img_size=128)
@@ -72,11 +75,7 @@ def main():
             for param in net.parameters():
                 param.grad = None
 
-            print("inputs type: ", type(inputs))
-            print("inputs shape: ", inputs.shape)
             benign_outputs = net(inputs)
-            print("benign_outputs type: ", type(benign_outputs))
-            print("targets.shape: ", targets.shape)
             loss = criterion(benign_outputs, targets)
             loss.backward()
             
@@ -144,13 +143,17 @@ def main():
     train_accuracies = []
     test_accuracies = []
 
-    for epoch in range(0, 200):
+    for epoch in tqdm(range(0, 200)):
         adjust_learning_rate(optimizer, epoch)
         train_accuracies.append(train(epoch))
         test_accuracies.append(test(epoch))
 
+    plt.xlabel('epoch')
+    plt.ylabel('acc')
+    plt.plot(range(1, 201), train_accuracies, label='Train Accuracy')
+    plt.plot(range(1, 201), test_accuracies, label='Test Accuracy')
+    plt.show()
     
-
 
 if __name__ == '__main__':
     main()
