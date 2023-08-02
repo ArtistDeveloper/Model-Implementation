@@ -25,7 +25,7 @@ from torchvision.transforms import Compose, ToTensor, Lambda, ToPILImage, Center
 
 
 # Defining the forward diffusion process
-class ForwardProcess():
+class ForwardBetaSchedule():
     @staticmethod
     def cosine_beta_schedule(timesteps, s=0.008):
         """
@@ -66,7 +66,7 @@ class Diffusion(nn.Module):
             timesteps = 300
     ):
         # define beta schedule
-        betas = ForwardProcess.linear_beta_schedule(timesteps=300)
+        betas = ForwardBetaSchedule.linear_beta_schedule(timesteps=300)
 
         # define alphas 
         alphas = 1. - betas
@@ -77,9 +77,6 @@ class Diffusion(nn.Module):
         # calculations for diffusion q(x_t | x_{t-1}) and others
         sqrt_alphas_cumprod = torch.sqrt(alphas_cumprod)
         sqrt_one_minus_alphas_cumprod = torch.sqrt(1. - alphas_cumprod)
-
-        # calculations for posterior q(x_{t-1} | x_t, x_0)
-        posterior_variance = betas * (1. - alphas_cumprod_prev) / (1. - alphas_cumprod)
 
         # calculations for posterior q(x_{t-1} | x_t, x_0)
         posterior_variance = betas * (1. - alphas_cumprod_prev) / (1. - alphas_cumprod)
@@ -150,6 +147,8 @@ class Diffusion(nn.Module):
         plt.imshow(noisy_image)
         plt.show()
 
+    # def do_forward_process():
+        
 
 
 # 정리된 main
