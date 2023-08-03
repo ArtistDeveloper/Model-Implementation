@@ -69,14 +69,15 @@ class Diffusion(nn.Module):
         betas = ForwardBetaSchedule.linear_beta_schedule(timesteps=300)
 
         # define alphas 
-        alphas = 1. - betas
-        alphas_cumprod = torch.cumprod(alphas, axis=0)
-        alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.0)
+        alphas = 1. - betas # alpha: 1 - beta
+        alphas_cumprod = torch.cumprod(alphas, axis=0) # alpha hat: start ~ timestep까지의 누적곱
+        alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.0) # 마지막 숫자 제외한 뒤 맨 앞(왼쪽)에 값 1.0으로 한 개의 패딩 추가
         sqrt_recip_alphas = torch.sqrt(1.0 / alphas)
 
         # calculations for diffusion q(x_t | x_{t-1}) and others
-        sqrt_alphas_cumprod = torch.sqrt(alphas_cumprod)
-        sqrt_one_minus_alphas_cumprod = torch.sqrt(1. - alphas_cumprod)
+        # 이 방식으로 샘플링을 할 때, 한 번에 노이즈를 다 입힌 이미지로 변환가능하다.
+        sqrt_alphas_cumprod = torch.sqrt(alphas_cumprod) # 정규분포의 평균에서 사용할 값
+        sqrt_one_minus_alphas_cumprod = torch.sqrt(1. - alphas_cumprod) # 정규분포의 표준편차에서 사용할 값
 
         # calculations for posterior q(x_{t-1} | x_t, x_0)
         posterior_variance = betas * (1. - alphas_cumprod_prev) / (1. - alphas_cumprod)
