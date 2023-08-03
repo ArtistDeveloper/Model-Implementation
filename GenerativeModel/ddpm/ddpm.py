@@ -91,19 +91,23 @@ class Diffusion(nn.Module):
         image = Image.open(requests.get(url, stream=True).raw) # PIL image of shape HWC
         plt.imshow(image)
         plt.show()
+        print("image: ", type(image))
+        print("image size: ", image.size)
+        img_arr = np.array(image)
+        print(img_arr.shape)
 
 
         image_size = 128
         transform = Compose([
             Resize(image_size),
             CenterCrop(image_size),
-            ToTensor(), # turn into torch Tensor of shape CHW, divide by 255
-            Lambda(lambda t: (t * 2) - 1),
-            
+            ToTensor(), # C,H,W shape의 tensor로 변환하며 255로 나누어 0~1 사이의 값으로 정규화
+            Lambda(lambda t: (t * 2) - 1), # [-1, 1] 사이로 값 정규화
         ])
 
         x_start = transform(image).unsqueeze(0)
-        x_start.shape
+        print("x_start type: ", type(x_start))
+        print("x_start : ", x_start.shape)
 
         reverse_transform = Compose([
             Lambda(lambda t: (t + 1) / 2),
