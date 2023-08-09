@@ -76,7 +76,7 @@ def extract(alphas, target_t, x_shape):
 
     """
     batch_size = target_t.shape[0]
-    out = alphas.gather(-1, target_t.cpu())
+    out = alphas.gather(-1, target_t.cpu()) # dim, index
     print("out: ", out)
 
     return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(target_t.device)
@@ -132,10 +132,11 @@ class Diffusion(nn.Module):
         if noise is None:
             noise = torch.randn_like(x_start)
 
+        # 학습할 때 아래 값들이 필요하다.
         sqrt_alphas_cumprod_t = extract(self.sqrt_alphas_cumprod, target_t, x_start.shape) 
         sqrt_one_minus_alphas_cumprod_t = extract(self.sqrt_one_minus_alphas_cumprod, target_t, x_start.shape)
 
-        return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise # 샘플링 수식인가?
+        return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise # NOTE: 샘플링 수식인가?
     
 
     def get_noisy_image(self, x_start, target_t):
