@@ -97,7 +97,6 @@ class Diffusion(nn.Module):
         # 사후 확률 q(x_{t-1} | x_t, x_0)에 대한 계산
         self.posterior_variance = self.betas * (1. - self.alphas_cumprod_prev) / (1. - self.alphas_cumprod)
 
-        # ---------------------------------------- ---------------------------------------- #
     
     # 포워드 디퓨전 (using the nice property)
     def q_sample(self, x_start:torch.Tensor, t:torch.Tensor, noise=None):
@@ -111,11 +110,9 @@ class Diffusion(nn.Module):
     
 
     def get_noisy_image(self, x_start, t):
-        # add noise
         x_noisy = self.q_sample(x_start, t=t)
         
-        # 또한 역변환을 정의하여, [-1, 1]의 값을 포함하는 PyTorch 텐서를 받아 이를 다시 PIL 이미지로 변환합니다.또한 역변환을 정의하여, 
-        # [-1, 1]의 값을 포함하는 PyTorch 텐서를 받아 이를 다시 PIL 이미지로 변환합니다.
+        # 역변환을 정의하여, [-1, 1]의 값을 포함하는 PyTorch 텐서를 받아 이를 다시 PIL 이미지로 변환
         reverse_transform = Compose([
             Lambda(lambda t: (t + 1) / 2),
             Lambda(lambda t: t.permute(1, 2, 0)), # CHW to HWC
@@ -124,13 +121,12 @@ class Diffusion(nn.Module):
             ToPILImage(), # tensor or ndarray to PIL image
         ])
 
-        # turn back into PIL image
         noisy_image = reverse_transform(x_noisy.squeeze())
 
         return noisy_image
 
     
-    def do_forward_process(self):
+    def test_forward_process(self):
         image = load_image()
         
         image_size = 128
@@ -158,94 +154,5 @@ class Diffusion(nn.Module):
 # 정리된 main
 if __name__ == '__main__':
     model = Diffusion(timesteps=300)
-    model.do_forward_process()
+    model.test_forward_process()
 
-
-
-# 다 때려 박아 놓은 것
-# if __name__ == '__main__':
-#     # forward process
-#     timesteps = 300
-
-#     # define beta schedule
-#     betas = ForwardProcess.linear_beta_schedule(timesteps=timesteps)
-
-#     # define alphas 
-#     alphas = 1. - betas
-#     alphas_cumprod = torch.cumprod(alphas, axis=0)
-#     alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.0)
-#     sqrt_recip_alphas = torch.sqrt(1.0 / alphas)
-
-#     # calculations for diffusion q(x_t | x_{t-1}) and others
-#     sqrt_alphas_cumprod = torch.sqrt(alphas_cumprod)
-#     sqrt_one_minus_alphas_cumprod = torch.sqrt(1. - alphas_cumprod)
-
-#     # calculations for posterior q(x_{t-1} | x_t, x_0)
-#     posterior_variance = betas * (1. - alphas_cumprod_prev) / (1. - alphas_cumprod)
-
-#     def extract(a, t, x_shape):
-#         batch_size = t.shape[0]
-#         out = a.gather(-1, t.cpu())
-#         return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(t.device)
-
-
-#     url = 'http://images.cocodataset.org/val2017/000000039769.jpg'
-#     image = Image.open(requests.get(url, stream=True).raw) # PIL image of shape HWC
-#     plt.imshow(image)
-#     plt.show()
-
-
-#     image_size = 128
-#     transform = Compose([
-#         Resize(image_size),
-#         CenterCrop(image_size),
-#         ToTensor(), # turn into torch Tensor of shape CHW, divide by 255
-#         Lambda(lambda t: (t * 2) - 1),
-        
-#     ])
-
-#     x_start = transform(image).unsqueeze(0)
-#     x_start.shape
-
-#     reverse_transform = Compose([
-#         Lambda(lambda t: (t + 1) / 2),
-#         Lambda(lambda t: t.permute(1, 2, 0)), # CHW to HWC
-#         Lambda(lambda t: t * 255.),
-#         Lambda(lambda t: t.numpy().astype(np.uint8)),
-#         ToPILImage(),
-#     ])
-
-#     test = reverse_transform(x_start.squeeze())
-#     plt.imshow(test)
-#     plt.show()
-
-
-#     # forward diffusion (using the nice property)
-#     def q_sample(x_start, t, noise=None):
-#         if noise is None:
-#             noise = torch.randn_like(x_start)
-
-#         sqrt_alphas_cumprod_t = extract(sqrt_alphas_cumprod, t, x_start.shape)
-#         sqrt_one_minus_alphas_cumprod_t = extract(
-#             sqrt_one_minus_alphas_cumprod, t, x_start.shape
-#         )
-
-#         return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
-    
-
-#     def get_noisy_image(x_start, t):
-#         # add noise
-#         x_noisy = q_sample(x_start, t=t)
-
-#         # turn back into PIL image
-#         noisy_image = reverse_transform(x_noisy.squeeze())
-
-#         return noisy_image
-    
-#     # take time step
-#     t = torch.tensor([40])
-
-#     noisy_image = get_noisy_image(x_start, t)
-#     print(type(noisy_image))
-#     plt.imshow(noisy_image)
-#     plt.show()
