@@ -4,3 +4,4 @@ models/
 data/
 checkpoint/
 png_out/
+*.gif
