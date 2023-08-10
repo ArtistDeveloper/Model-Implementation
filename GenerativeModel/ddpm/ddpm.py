@@ -71,15 +71,20 @@ def load_image():
 
 def extract(alphas, target_t, x_shape):
     """
-    total_timestep까지 구해놓은 alphas의 텐서와 목표하는 timestep까지의 텐서를 받아 
-
-
+    처음부터 끝까지 구해놓은 alphas의 텐서와 목표하는 timestep인 텐서 target_t를 받아
+    target_t를 index로 씀으로 alphas에서 값을 하나 추출한다.
+    out = alphas.gather(-1, target_t.cpu())에서 
+    alphas의 shape가 300이면 300개 중 target(여기선 40)의 인덱스의 위치의 값을 가져온다.
     """
     batch_size = target_t.shape[0]
-    out = alphas.gather(-1, target_t.cpu()) # dim, index
-    print("out: ", out)
+    out = alphas.gather(-1, target_t.cpu()) # dim=-1은 차원에서 마지막 차원을 뜻한다.(무조건 열일듯), index: take로 취할 단일 텐서
 
-    return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(target_t.device)
+    test = out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(target_t.device)
+    print(test)
+    print(type(test))
+    return test
+
+    # return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(target_t.device) # (1, *((1,) * (300 - 1))
 
 
 class Diffusion(nn.Module):
@@ -106,10 +111,15 @@ class Diffusion(nn.Module):
                 학습 과정에서 필요. DDPM의 Algorithm 1 Training 참고.
 
         # Sampling
-        self.sqrt_recip_alphas = torch.sqrt(1.0 / self.alphas):
+        sqrt_recip_alphas = torch.sqrt(1.0 / self.alphas):
             루트 알파 바의 역수가 샘플링 과정에서 필요하다. 
         
-
+        # ??
+        posterior_variance:
+            사후 확률 q(x_{t-1} | x_t, x_0)(eq.6.) 계산에서 분산에 사용되는 값. beta tilde로 표현된다.
+            KL divergence를 사용하여 바로 pθ(xt−1|xt)와 forward process의 posterior와 비교하는데, 
+            이 때 X_0를 조건으로 하면 forward process의 posterior를 추적할 수 있다.
+            즉 구하고자 하는 t와, 처음 시작지점 x_0를 조건으로 주면 x_{t-1}의 노이즈 상태를 얻을 수 있다.
         """
         # beta schedule 정의
         self.betas = ForwardBetaSchedule.linear_beta_schedule(timesteps=total_timesteps)
@@ -123,11 +133,10 @@ class Diffusion(nn.Module):
 
         self.sqrt_recip_alphas = torch.sqrt(1.0 / self.alphas)
 
-        # 사후 확률 q(x_{t-1} | x_t, x_0)에 대한 계산
         self.posterior_variance = self.betas * (1. - self.alphas_cumprod_prev) / (1. - self.alphas_cumprod)
 
     
-    # forward diffusion. 목표하는 타입스텝까지의 tensor들을 extract해서 텐서를 가져온다.
+    # forward process. 목표하는 타입스텝까지의 tensor들을 extract해서 텐서를 가져온다.
     def q_sample(self, x_start:torch.Tensor, target_t:torch.Tensor, noise=None):
         if noise is None:
             noise = torch.randn_like(x_start)
