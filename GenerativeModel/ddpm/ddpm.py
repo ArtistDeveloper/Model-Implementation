@@ -79,12 +79,7 @@ def extract(alphas, target_t, x_shape):
     batch_size = target_t.shape[0]
     out = alphas.gather(-1, target_t.cpu()) # dim=-1은 차원에서 마지막 차원을 뜻한다.(무조건 열일듯), index: take로 취할 단일 텐서
 
-    test = out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(target_t.device)
-    print(test)
-    print(type(test))
-    return test
-
-    # return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(target_t.device) # (1, *((1,) * (300 - 1))
+    return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(target_t.device) # (1, 1, 1, 1)shpae으로 값 return. 
 
 
 class Diffusion(nn.Module):
@@ -138,14 +133,22 @@ class Diffusion(nn.Module):
     
     # forward process. 목표하는 타입스텝까지의 tensor들을 extract해서 텐서를 가져온다.
     def q_sample(self, x_start:torch.Tensor, target_t:torch.Tensor, noise=None):
+        """
+        sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise의 이해
+        식 4를 참조하면 평균에서 \sqrt{\hat{\alpha}} * x_0 (여기선 x_start)를 확인할 수 있으며
+        표준편차에서 (1 - \hat{\alpha_t}) * I 를 볼 수 있다. 해당 수식과 상당히 유사. (I가 noise로 추정. )
+        즉, 평균에서 표준편차만큼 계속 더해주면 노이즈라는건가?
+
+        기존 노이즈 * 시작 이미지 + 추가 노이즈
+        """
         if noise is None:
-            noise = torch.randn_like(x_start)
+            noise = torch.randn_like(x_start) # torch.randn(): 정규분포를 이용하여 생성
 
         # 학습할 때 아래 값들이 필요하다.
-        sqrt_alphas_cumprod_t = extract(self.sqrt_alphas_cumprod, target_t, x_start.shape) 
+        sqrt_alphas_cumprod_t = extract(self.sqrt_alphas_cumprod, target_t, x_start.shape)
         sqrt_one_minus_alphas_cumprod_t = extract(self.sqrt_one_minus_alphas_cumprod, target_t, x_start.shape)
 
-        return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise # NOTE: 샘플링 수식인가?
+        return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
     
 
     def get_noisy_image(self, x_start, target_t):
