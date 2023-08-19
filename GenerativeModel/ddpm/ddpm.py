@@ -443,6 +443,8 @@ def extract(alphas, target_t, x_shape):
 
 
 class Diffusion(nn.Module):
+    t_timesteps = 300
+
     def __init__(
             self, 
             total_timesteps = 300
@@ -477,6 +479,7 @@ class Diffusion(nn.Module):
             즉 구하고자 하는 t와, 처음 시작지점 x_0를 조건으로 주면 x_{t-1}의 노이즈 상태를 얻을 수 있다.
         """
         # beta schedule 정의
+        Diffusion.t_timesteps = total_timesteps
         self.betas = ForwardBetaSchedule.linear_beta_schedule(timesteps=total_timesteps)
 
         self.alphas = 1. - self.betas
@@ -560,7 +563,9 @@ class Diffusion(nn.Module):
         img = torch.randn(shape, device=device)
         imgs = []
 
-        for i in tqdm(reversed(range(0, timesteps)), desc='sampling loop time step', total=timesteps):
+        print("self.total_timesteps: ", Diffusion.t_timesteps)
+
+        for i in tqdm(reversed(range(0, Diffusion.t_timesteps)), desc='sampling loop time step', total=Diffusion.t_timesteps):
             img = self.p_sample(model, img, torch.full((b,), i, device=device, dtype=torch.long), i)
             imgs.append(img.cpu().numpy())
         return imgs
@@ -665,7 +670,7 @@ if __name__ == '__main__':
 
     optimizer = Adam(model.parameters(), lr=1e-3)
 
-    epochs = 6
+    epochs = 1
 
     for epoch in range(epochs):
         for step, batch in enumerate(dataloader):
@@ -707,7 +712,7 @@ if __name__ == '__main__':
 
     fig = plt.figure()
     ims = []
-    for i in range(timesteps):
+    for i in range(TIMESTEPS):
         im = plt.imshow(samples[i][random_index].reshape(image_size, image_size, channels), cmap="gray", animated=True)
         ims.append([im])
 
