@@ -372,45 +372,6 @@ def apply_transforms(examples):
 
    return examples
 
-
-# def p_losses(denoise_model, x_start, t, noise=None, loss_type="l1"):
-#     if noise is None:
-#         noise = torch.randn_like(x_start)
-
-#     x_noisy = q_sample(x_start=x_start, t=t, noise=noise)
-#     predicted_noise = denoise_model(x_noisy, t)
-
-#     if loss_type == 'l1':
-#         loss = F.l1_loss(noise, predicted_noise)
-#     elif loss_type == 'l2':
-#         loss = F.mse_loss(noise, predicted_noise)
-#     elif loss_type == "huber":
-#         loss = F.smooth_l1_loss(noise, predicted_noise)
-#     else:
-#         raise NotImplementedError()
-
-#     return loss
-
-# 수정 버전
-# def p_losses(diffusion_model, denoise_model, x_start, t, noise=None, loss_type="l1"):
-#     if noise is None:
-#         noise = torch.randn_like(x_start)
-
-#     print("test t : ", t)
-
-#     x_noisy = diffusion_model.q_sample(diffusion_model, x_start=x_start, target_t=t, noise=noise) # BUGFIX: 아 self 때문이겠다..
-#     predicted_noise = denoise_model(x_noisy, t)
-
-#     if loss_type == 'l1':
-#         loss = F.l1_loss(noise, predicted_noise)
-#     elif loss_type == 'l2':
-#         loss = F.mse_loss(noise, predicted_noise)
-#     elif loss_type == "huber":
-#         loss = F.smooth_l1_loss(noise, predicted_noise)
-#     else:
-#         raise NotImplementedError()
-
-#     return loss
 #----------------------------------------------------#
 
 
@@ -462,7 +423,8 @@ def load_image():
     url = 'http://images.cocodataset.org/val2017/000000039769.jpg'
     image = Image.open(requests.get(url, stream=True).raw) # PIL image of shape HWC
     plt.imshow(image)
-    plt.show()
+    # plt.show()
+    plt.savefig("./origin_image.png")
     return image
 
 
@@ -650,15 +612,16 @@ class Diffusion(nn.Module):
         
         print(type(noisy_image))
         plt.imshow(noisy_image)
-        plt.show()
+        # plt.show()
+        plt.savefig('./noisy.png')
 
         
 
 
 # 정리된 main
 if __name__ == '__main__':
-    diffusion_model = Diffusion(total_timesteps=300)
-    # model.test_forward_process()
+    diffusion_model = Diffusion(total_timesteps=1000)
+    diffusion_model.test_forward_process()
 
     #------------------------------------#
     # load dataset from the hub
@@ -699,8 +662,8 @@ if __name__ == '__main__':
 
     optimizer = Adam(model.parameters(), lr=1e-3)
 
-    epochs = 6
-    timesteps = 300
+    epochs = 40
+    timesteps = 1000
 
     for epoch in range(epochs):
         for step, batch in enumerate(dataloader):
@@ -748,6 +711,7 @@ if __name__ == '__main__':
 
     animate = animation.ArtistAnimation(fig, ims, interval=50, blit=True, repeat_delay=1000)
     animate.save('diffusion.gif')
-    plt.show()
+    # plt.show()
+    plt.savefig("./result.png")
 
     #------------------------------------#
