@@ -322,6 +322,7 @@ class Unet(nn.Module):
         self.final_res_block = block_klass(dim * 2, dim, time_emb_dim=time_dim)
         self.final_conv = nn.Conv2d(dim, self.out_dim, 1)
 
+
     def forward(self, x, time, x_self_cond=None):
         if self.self_condition:
             x_self_cond = default(x_self_cond, lambda: torch.zeros_like(x))
@@ -620,7 +621,9 @@ class Diffusion(nn.Module):
 
 # 정리된 main
 if __name__ == '__main__':
-    diffusion_model = Diffusion(total_timesteps=1000)
+    TIMESTEPS = 300
+
+    diffusion_model = Diffusion(total_timesteps=TIMESTEPS)
     diffusion_model.test_forward_process()
 
     #------------------------------------#
@@ -662,8 +665,7 @@ if __name__ == '__main__':
 
     optimizer = Adam(model.parameters(), lr=1e-3)
 
-    epochs = 40
-    timesteps = 1000
+    epochs = 6
 
     for epoch in range(epochs):
         for step, batch in enumerate(dataloader):
@@ -673,7 +675,7 @@ if __name__ == '__main__':
             batch = batch["pixel_values"].to(device)
 
             # Algorithm 1 line 3: sample t uniformally for every example in the batch
-            t = torch.randint(0, timesteps, (batch_size,), device=device).long()
+            t = torch.randint(0, TIMESTEPS, (batch_size,), device=device).long()
 
             loss = diffusion_model.p_losses(model, batch, t, noise=None, loss_type="huber")
 
@@ -693,7 +695,7 @@ if __name__ == '__main__':
                 save_image(all_images, str(results_folder / f'sample-{milestone}.png'), nrow = 6)
 
 
-    #sampling (inference)
+    # sampling (inference)
     # sample 64 images
     samples = diffusion_model.sample(model, image_size=image_size, batch_size=64, channels=channels)
 
