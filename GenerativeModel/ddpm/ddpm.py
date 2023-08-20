@@ -1,3 +1,4 @@
+import os
 import math
 import numpy as np
 from inspect import isfunction
@@ -365,22 +366,12 @@ class Unet(nn.Module):
         return self.final_conv(x)
 
 
-#----------------------------------------------------#
 # define function
 def apply_transforms(examples):
    examples["pixel_values"] = [transform(image.convert("L")) for image in examples["image"]]
    del examples["image"]
 
    return examples
-
-#----------------------------------------------------#
-
-
-#----------------------------------------------------#
-"""Sampling"""
-
-
-#----------------------------------------------------#
 
 
 # Defining the forward diffusion process
@@ -532,15 +523,26 @@ class Diffusion(nn.Module):
 
         return loss
     
-    """sampling"""
+    """
+    Sampling
+    디퓨전 모델에서 새로운 이미지를 생성하려면 디퓨전 프로세스(포워드 프로세스)를 역전시켜 가우스 분포에서
+    순수한 노이즈를 샘플링하는 T에서 시작한 다음, 신경망을 사용하여 학습한 조건부 확률을 사용하여 점진적으로 
+    노이즈를 제거하여 timestep t=0에 도달한다. 노이즈 예측기(model)을 사용하여 평균의 reparameterization(재측정?)값을
+    연결하면 노이즈가 약간 덜 제거된 이미지 x{t-1}을 도출할 수 있다. 분산은 미리 알고 있다는 것을 염두에 두어라.
+
+    이상적으로 실제 데이터 분포에서 가져온 것처럼 보이는 이미지로 끝내는 것이 좋다.
+    """
+    
+
+
     @torch.no_grad()
     def p_sample(self, model, x, t, t_index):
         betas_t = extract(self.betas, t, x.shape)
         sqrt_one_minus_alphas_cumprod_t = extract(self.sqrt_one_minus_alphas_cumprod, t, x.shape)
         sqrt_recip_alphas_t = extract(self.sqrt_recip_alphas, t, x.shape)
         
-        # Equation 11 in the paper
-        # Use our model (noise predictor) to predict the mean
+        # 논문 Eq.11
+        # 모델(노이즈 예측기)을 사용하여 평균을 예측한다.
         model_mean = sqrt_recip_alphas_t * (
             x - betas_t * model(x, t) / sqrt_one_minus_alphas_cumprod_t
         )
@@ -550,16 +552,16 @@ class Diffusion(nn.Module):
         else:
             posterior_variance_t = extract(self.posterior_variance, t, x.shape)
             noise = torch.randn_like(x)
-            # Algorithm 2 line 4:
+            # 알고리즘 2, 4번째 줄
             return model_mean + torch.sqrt(posterior_variance_t) * noise 
 
-    # Algorithm 2 (including returning all images)
+    # 알고리즘 2 (모든 이미지 반환 포함)
     @torch.no_grad()
     def p_sample_loop(self, model, shape):
         device = next(model.parameters()).device
 
-        b = shape[0]
-        # start from pure noise (for each example in the batch)
+        b = shape[0]        
+        # 순수한 노이즈에서 시작(배치의 각 예제에 대해)
         img = torch.randn(shape, device=device)
         imgs = []
 
@@ -626,7 +628,13 @@ class Diffusion(nn.Module):
 
 # 정리된 main
 if __name__ == '__main__':
-    TIMESTEPS = 300
+    TIMESTEPS = 100
+
+    SAVED_MODEL_DIR = "./saved_model"
+
+    if not os.path.exists(SAVED_MODEL_DIR):
+        os.makedirs(SAVED_MODEL_DIR)
+
 
     diffusion_model = Diffusion(total_timesteps=TIMESTEPS)
     diffusion_model.test_forward_process()
@@ -679,7 +687,7 @@ if __name__ == '__main__':
             batch_size = batch["pixel_values"].shape[0]
             batch = batch["pixel_values"].to(device)
 
-            # Algorithm 1 line 3: sample t uniformally for every example in the batch
+            # 알고리즘 1, 3번째 줄: 배치의 모든 예제에 대해 균일하게 t를 샘플링한다.
             t = torch.randint(0, TIMESTEPS, (batch_size,), device=device).long()
 
             loss = diffusion_model.p_losses(model, batch, t, noise=None, loss_type="huber")
@@ -690,18 +698,24 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
 
-            # save generated images
+            # 생성된 이미지 저장
             if step != 0 and step % save_and_sample_every == 0:
+                print('왜 저장안대지')
                 milestone = step // save_and_sample_every
                 batches = num_to_groups(4, batch_size)
                 all_images_list = list(map(lambda n: diffusion_model.sample(model, batch_size=n, channels=channels), batches))
                 all_images = torch.cat(all_images_list, dim=0)
                 all_images = (all_images + 1) * 0.5
                 save_image(all_images, str(results_folder / f'sample-{milestone}.png'), nrow = 6)
+                print('호출된거맞아?')
 
+
+    # 모델 저장
+    torch.save(model, SAVED_MODEL_DIR + "/ddpm.pt")
+    torch.save(model.state_dict(), SAVED_MODEL_DIR + "/ddpm_state.pt")
 
     # sampling (inference)
-    # sample 64 images
+    # 64개 이미지 샘플링
     samples = diffusion_model.sample(model, image_size=image_size, batch_size=64, channels=channels)
 
     # show a random one
