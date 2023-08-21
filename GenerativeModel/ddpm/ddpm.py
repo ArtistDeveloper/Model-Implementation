@@ -636,6 +636,7 @@ def save_model(model, SAVED_MODEL_DIR):
 # 정리된 main
 if __name__ == '__main__':
     TIMESTEPS = 10
+    DDPM_DIR = r"/workspace/Model-Implementation/GenerativeModel/ddpm"
     SAVED_MODEL_DIR = r"/workspace/Model-Implementation/GenerativeModel/ddpm/saved_model"
     DIFFUSION_RESULTS_PATH = r"/workspace/Model-Implementation/GenerativeModel/ddpm/results"
     SAVE_AND_SAMPLE_EVERY = 100
@@ -683,8 +684,8 @@ if __name__ == '__main__':
         for step, batch in enumerate(dataloader):
             optimizer.zero_grad()        
 
-            batch_size = batch["pixel_values"].shape[0]
-            batch = batch["pixel_values"].to(device) # shaep = [128, 1, 28, 28]
+            batch_size = batch["pixel_values"].shape[0] # shape = [128, 1, 28, 28]. 여기서 pixel_value는 배치로 묶인 이미지 데이터를 의미한다.
+            batch = batch["pixel_values"].to(device) 
 
             # 알고리즘 1, 3번째 줄: 배치의 모든 예제에 대해 균일하게 t를 샘플링한다.
             t = torch.randint(0, TIMESTEPS, (batch_size,), device=device).long()
@@ -734,5 +735,5 @@ if __name__ == '__main__':
         ims.append([im])
 
     animate = animation.ArtistAnimation(fig, ims, interval=50, blit=True, repeat_delay=1000)
-    animate.save('diffusion.gif')
-    plt.savefig("./result.png")
+    animate.save(DDPM_DIR + "/diffusion.gif")
+    plt.savefig(DDPM_DIR + "/result.png")
