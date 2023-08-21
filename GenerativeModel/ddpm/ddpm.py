@@ -5,6 +5,10 @@ import requests
 from PIL import Image
 from inspect import isfunction
 from functools import partial
+from einops import rearrange, reduce
+from einops.layers.torch import Rearrange
+from datasets import load_dataset
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.image as img
@@ -17,14 +21,8 @@ import torch
 import torch.nn.functional as F
 from torchvision.transforms import Compose, ToTensor, Lambda, ToPILImage, CenterCrop, Resize
 from torch import nn, einsum
-
-
-from einops import rearrange, reduce
-from einops.layers.torch import Rearrange
-from datasets import load_dataset
 from torchvision import transforms
 from torch.utils.data import DataLoader
-from pathlib import Path
 from torch.optim import Adam
 from torchvision.utils import save_image
 
@@ -48,6 +46,7 @@ def num_to_groups(num, divisor):
     if remainder > 0:
         arr.append(remainder)
     return arr
+
 
 
 class Residual(nn.Module):
@@ -74,7 +73,7 @@ def Downsample(dim, dim_out=None):
     )
 
 
-#-----------------------"""-----------------------------#
+
 """Positional embedding"""
 class SinusoidalPositionEmbeddings(nn.Module):
     def __init__(self, dim):
@@ -90,7 +89,8 @@ class SinusoidalPositionEmbeddings(nn.Module):
         embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)
         return embeddings
 
-#----------------------------------------------------#
+
+
 """ResNet block"""
 class WeightStandardizedConv2d(nn.Conv2d):
     """
@@ -162,7 +162,8 @@ class ResnetBlock(nn.Module):
         h = self.block2(h)
         return h + self.res_conv(x)
 
-#----------------------------------------------------#
+
+
 """Attention Module"""
 class Attention(nn.Module):
     def __init__(self, dim, heads=4, dim_head=32):
@@ -219,7 +220,7 @@ class LinearAttention(nn.Module):
         return self.to_out(out)
 
 
-#----------------------------------------------------#
+
 """Group normalization"""
 class PreNorm(nn.Module):
     def __init__(self, dim, fn):
@@ -232,7 +233,7 @@ class PreNorm(nn.Module):
         return self.fn(x)
 
 
-#----------------------------------------------------#
+
 """Conditional U-Net"""
 class Unet(nn.Module):
     def __init__(
@@ -360,7 +361,8 @@ class Unet(nn.Module):
         return self.final_conv(x)
 
 
-# define function
+
+# TODO : 무엇을 하는 함수인지 작성
 def apply_transforms(examples):
    examples["pixel_values"] = [transform(image.convert("L")) for image in examples["image"]]
    del examples["image"]
@@ -368,7 +370,8 @@ def apply_transforms(examples):
    return examples
 
 
-# Defining the forward diffusion process
+
+# 포워드 디퓨전 프로세스 정의
 class ForwardBetaSchedule():
     @staticmethod
     def cosine_beta_schedule(timesteps, s=0.008):
@@ -405,7 +408,7 @@ class ForwardBetaSchedule():
 
 
 
-def load_image():
+def test_load_image():
     url = 'http://images.cocodataset.org/val2017/000000039769.jpg'
     image = Image.open(requests.get(url, stream=True).raw) # PIL image of shape HWC
     plt.imshow(image)
@@ -427,6 +430,7 @@ def extract(alphas, target_t, x_shape):
     return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(target_t.device) # (1, 1, 1, 1)shpae으로 값 return 
 
 
+# TODO: diffusion 클래스 안에 UNet모델 객체 삽입하기
 class Diffusion(nn.Module):
     t_timesteps = 300
 
@@ -598,7 +602,7 @@ class Diffusion(nn.Module):
 
     
     def test_forward_process(self):
-        image = load_image()
+        image = test_load_image()
         
         image_size = 128
         transform = Compose([
@@ -622,25 +626,23 @@ class Diffusion(nn.Module):
         plt.imshow(noisy_image)
         # plt.show()
         plt.savefig('./noisy.png')
-
         
 
+
+def save_model(model, SAVED_MODEL_DIR):
+    torch.save(model, SAVED_MODEL_DIR + "/ddpm.pt")
+    torch.save(model.state_dict(), SAVED_MODEL_DIR + "/ddpm_state.pt")
 
 # 정리된 main
 if __name__ == '__main__':
     TIMESTEPS = 100
-
-    SAVED_MODEL_DIR = "./saved_model"
-
-    if not os.path.exists(SAVED_MODEL_DIR):
-        os.makedirs(SAVED_MODEL_DIR)
-
+    SAVED_MODEL_DIR = r"/workspace/Model-Implementation/GenerativeModel/ddpm/saved_model"
+    DIFFUSION_RESULTS_PATH = r"/workspace/Model-Implementation/GenerativeModel/ddpm/results"
 
     diffusion_model = Diffusion(total_timesteps=TIMESTEPS)
-    diffusion_model.test_forward_process()
+    # diffusion_model.test_forward_process()
 
-
-    # load dataset from the hub
+    # hub로부터 데이터셋 로드
     dataset = load_dataset("fashion_mnist")
     image_size = 28
     channels = 1
@@ -663,7 +665,7 @@ if __name__ == '__main__':
     print(batch.keys())
 
     # 모델 학습
-    results_folder = Path("./results")
+    results_folder = Path(DIFFUSION_RESULTS_PATH)
     results_folder.mkdir(exist_ok = True)
     save_and_sample_every = 1000
 
@@ -713,8 +715,9 @@ if __name__ == '__main__':
 
 
     # 모델 저장
-    torch.save(model, SAVED_MODEL_DIR + "/ddpm.pt")
-    torch.save(model.state_dict(), SAVED_MODEL_DIR + "/ddpm_state.pt")
+    saved_model_dir = Path(SAVED_MODEL_DIR)
+    saved_model_dir.mkdir(exist_ok = True)
+    save_model(model, SAVED_MODEL_DIR)
 
     # 샘플링 (inference)
     # 64개 이미지 샘플링
@@ -735,5 +738,3 @@ if __name__ == '__main__':
     animate = animation.ArtistAnimation(fig, ims, interval=50, blit=True, repeat_delay=1000)
     animate.save('diffusion.gif')
     plt.savefig("./result.png")
-
-    #------------------------------------#
