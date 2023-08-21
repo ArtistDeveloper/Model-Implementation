@@ -427,7 +427,7 @@ def extract(alphas, target_t, x_shape):
     batch_size = target_t.shape[0]
     out = alphas.gather(-1, target_t.cpu()) # dim=-1은 차원에서 마지막 차원을 뜻한다.(무조건 열일듯), index: take로 취할 단일 텐서
 
-    return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(target_t.device) # (1, 1, 1, 1)shpae으로 값 return 
+    return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(target_t.device) # (?, ?, ?, ?)shpae으로 값 return 
 
 
 # TODO: diffusion 클래스 안에 UNet모델 객체 삽입하기
@@ -570,12 +570,11 @@ class Diffusion(nn.Module):
         batch_size = shape[0] # shpae: batch, channel, img_size, img_size       
         
         # 이미지는 순수한 노이즈에서 시작 (배치의 각 예제에 대해)
-        img = torch.randn(shape, device=device) # shape=(batch_size, channels, img_size, img_size)
+        img = torch.randn(shape, device=device) # shape=(batch_size, channels, img_size, img_size) [4,1,28,28]
         imgs = []
         for i in tqdm(reversed(range(0, Diffusion.t_timesteps)), desc='sampling loop time step', total=Diffusion.t_timesteps):
             img = self.p_sample(model, img, torch.full((batch_size,), i, device=device, dtype=torch.long), i)
             imgs.append(img.cpu().numpy())
-            # imgs.append(img.cpu())
 
         # timestep의 이미지만큼 sampling해서 이미지들을 반환한다. timestep이 300이면 300개의 이미지가 담긴 1차원 벡터 반환
         return imgs
@@ -703,11 +702,12 @@ if __name__ == '__main__':
                 milestone = step // SAVE_AND_SAMPLE_EVERY
                 batches = num_to_groups(4, batch_size) # 4, 128, batches = [4]
 
-                # 배치 크기 별로 이미지 샘플링
                 # map: 리스트의 요소를 지정된 함 수로 처리해준다. map(function, iterable)
+                # 첫 번째 배치의 이미지 리스트를 가져오고, 각 이미지를 텐서로 변환. 이미지는 batches * timestep의 개수만큼 반환되어 온다.
+                # 여기서 batches는 4이고, TIMESTEPS은 10이라면 총 40개의 이미지를 가져오게 된다.
                 all_images_list = list(map(lambda n: diffusion_model.sample(model, image_size, batch_size=n, channels=channels), batches))
-                image_tensors = [torch.tensor(image) for image in all_images_list[0]] # 첫 번째 배치의 이미지 리스트를 가져오고, 각 이미지를 텐서로 변환
-                all_images_tensor = torch.cat(image_tensors, dim=0) # 모든 이미지를 하나의 텐서로 연결
+                image_tensors = [torch.tensor(image) for image in all_images_list[0]] 
+                all_images_tensor = torch.cat(image_tensors, dim=0) 
                 all_images_tensor = (all_images_tensor + 1) * 0.5 # 이미지 값 범위를 [0, 1]로 조정
                 save_image(all_images_tensor, str(results_folder / f'sample-{milestone}.png'), nrow=6)
 
