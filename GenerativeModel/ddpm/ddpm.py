@@ -18,6 +18,7 @@ import torch.nn.functional as F
 
 import matplotlib.image as img
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 from torchvision.transforms import Compose, ToTensor, Lambda, ToPILImage, CenterCrop, Resize
 
@@ -31,7 +32,8 @@ from torch.utils.data import DataLoader
 from pathlib import Path
 from torch.optim import Adam
 from torchvision.utils import save_image
-import matplotlib.animation as animation
+
+
 #----------------------------------------------------#
 
 
@@ -430,7 +432,7 @@ def extract(alphas, target_t, x_shape):
     batch_size = target_t.shape[0]
     out = alphas.gather(-1, target_t.cpu()) # dim=-1은 차원에서 마지막 차원을 뜻한다.(무조건 열일듯), index: take로 취할 단일 텐서
 
-    return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(target_t.device) # (1, 1, 1, 1)shpae으로 값 return. 
+    return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(target_t.device) # (1, 1, 1, 1)shpae으로 값 return 
 
 
 class Diffusion(nn.Module):
@@ -485,9 +487,10 @@ class Diffusion(nn.Module):
         self.posterior_variance = self.betas * (1. - self.alphas_cumprod_prev) / (1. - self.alphas_cumprod)
 
     
-    # forward process. 목표하는 타입스텝까지의 tensor들을 extract해서 텐서를 가져온다.
     def q_sample(self, x_start:torch.Tensor, target_t:torch.Tensor, noise=None):
         """
+        forward process. 목표하는 타입스텝까지의 tensor들을 extract해서 텐서를 가져온다.
+        
         sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise의 이해
         식 4를 참조하면 평균에서 \sqrt{\hat{\alpha}} * x_0 (여기선 x_start)를 확인할 수 있으며
         표준편차에서 (1 - \hat{\alpha_t}) * I 를 볼 수 있다. 해당 수식과 상당히 유사. (I가 noise로 추정. )
@@ -504,7 +507,7 @@ class Diffusion(nn.Module):
 
         return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
     
-    #------------------------------------#
+    
     def p_losses(self, denoise_model, x_start, t, noise=None, loss_type="l1"):
         if noise is None:
             noise = torch.randn_like(x_start)
@@ -532,52 +535,58 @@ class Diffusion(nn.Module):
 
     이상적으로 실제 데이터 분포에서 가져온 것처럼 보이는 이미지로 끝내는 것이 좋다.
     """
-    
 
 
     @torch.no_grad()
-    def p_sample(self, model, x, t, t_index):
-        betas_t = extract(self.betas, t, x.shape)
-        sqrt_one_minus_alphas_cumprod_t = extract(self.sqrt_one_minus_alphas_cumprod, t, x.shape)
-        sqrt_recip_alphas_t = extract(self.sqrt_recip_alphas, t, x.shape)
+    def p_sample(self, model, x_image, t, t_index):
+        # t.shape = [64] (배치사이즈 크기)
+
+        betas_t = extract(self.betas, t, x_image.shape) # t까지의 betas 얻어오기 shape = [64, 1, 1, 1]
+        sqrt_one_minus_alphas_cumprod_t = extract(self.sqrt_one_minus_alphas_cumprod, t, x_image.shape) # shape = [64, 1, 1, 1]
+        sqrt_recip_alphas_t = extract(self.sqrt_recip_alphas, t, x_image.shape) # shape = [64, 1, 1, 1]
         
         # 논문 Eq.11
         # 모델(노이즈 예측기)을 사용하여 평균을 예측한다.
         model_mean = sqrt_recip_alphas_t * (
-            x - betas_t * model(x, t) / sqrt_one_minus_alphas_cumprod_t
+            x_image - betas_t * model(x_image, t) / sqrt_one_minus_alphas_cumprod_t
         )
 
         if t_index == 0:
             return model_mean
         else:
-            posterior_variance_t = extract(self.posterior_variance, t, x.shape)
-            noise = torch.randn_like(x)
+            posterior_variance_t = extract(self.posterior_variance, t, x_image.shape)
+            noise = torch.randn_like(x_image)
+            
             # 알고리즘 2, 4번째 줄
             return model_mean + torch.sqrt(posterior_variance_t) * noise 
 
-    # 알고리즘 2 (모든 이미지 반환 포함)
+
     @torch.no_grad()
     def p_sample_loop(self, model, shape):
+        """
+        알고리즘 2를 구현한 것이다. (모든 이미지 반환 포함)
+        샘플링된 이미지들을 반환하기 위해 imgs 배열에 샘플링된 이미지를 추가한다.
+        샘플링의 timestep은 마지막부터 시작하여 1까지 반복하여 list를 reverse하여 반복한다.
+        """
+
         device = next(model.parameters()).device
 
-        b = shape[0]        
-        # 순수한 노이즈에서 시작(배치의 각 예제에 대해)
-        img = torch.randn(shape, device=device)
+        batch_size = shape[0] # shpae: batch, channel, img_size, img_size       
+        
+        # 이미지는 순수한 노이즈에서 시작 (배치의 각 예제에 대해)
+        img = torch.randn(shape, device=device) # shape=(64, 1, 28, 28)
+        print("img.shape: ", img.shape)
         imgs = []
-
-        print("self.total_timesteps: ", Diffusion.t_timesteps)
-
         for i in tqdm(reversed(range(0, Diffusion.t_timesteps)), desc='sampling loop time step', total=Diffusion.t_timesteps):
-            img = self.p_sample(model, img, torch.full((b,), i, device=device, dtype=torch.long), i)
+            img = self.p_sample(model, img, torch.full((batch_size,), i, device=device, dtype=torch.long), i)
             imgs.append(img.cpu().numpy())
+
         return imgs
 
     
     @torch.no_grad()
     def sample(self, model, image_size, batch_size=16, channels=3):
         return self.p_sample_loop(model, shape=(batch_size, channels, image_size, image_size))
-
-    #------------------------------------#
     
 
     def get_noisy_image(self, x_start, target_t):
@@ -639,7 +648,7 @@ if __name__ == '__main__':
     diffusion_model = Diffusion(total_timesteps=TIMESTEPS)
     diffusion_model.test_forward_process()
 
-    #------------------------------------#
+
     # load dataset from the hub
     dataset = load_dataset("fashion_mnist")
     image_size = 28
@@ -656,13 +665,13 @@ if __name__ == '__main__':
 
     transformed_dataset = dataset.with_transform(apply_transforms).remove_columns("label")
 
-    # create dataloader
+    # 데이터로더 생성
     dataloader = DataLoader(transformed_dataset["train"], batch_size=batch_size, shuffle=True)
 
     batch = next(iter(dataloader))
     print(batch.keys())
 
-    # Train the model
+    # 모델 학습
     results_folder = Path("./results")
     results_folder.mkdir(exist_ok = True)
     save_and_sample_every = 1000
@@ -703,7 +712,7 @@ if __name__ == '__main__':
                 print('왜 저장안대지')
                 milestone = step // save_and_sample_every
                 batches = num_to_groups(4, batch_size)
-                all_images_list = list(map(lambda n: diffusion_model.sample(model, batch_size=n, channels=channels), batches))
+                all_images_list = list(map(lambda n: diffusion_model.sample(model, image_size, batch_size=n, channels=channels), batches))
                 all_images = torch.cat(all_images_list, dim=0)
                 all_images = (all_images + 1) * 0.5
                 save_image(all_images, str(results_folder / f'sample-{milestone}.png'), nrow = 6)
@@ -714,11 +723,11 @@ if __name__ == '__main__':
     torch.save(model, SAVED_MODEL_DIR + "/ddpm.pt")
     torch.save(model.state_dict(), SAVED_MODEL_DIR + "/ddpm_state.pt")
 
-    # sampling (inference)
+    # 샘플링 (inference)
     # 64개 이미지 샘플링
     samples = diffusion_model.sample(model, image_size=image_size, batch_size=64, channels=channels)
 
-    # show a random one
+    # 샘플링 결과 아무거나 한 개 확인
     random_index = 5
     plt.imshow(samples[-1][random_index].reshape(image_size, image_size, channels), cmap="gray")
 
@@ -732,7 +741,6 @@ if __name__ == '__main__':
 
     animate = animation.ArtistAnimation(fig, ims, interval=50, blit=True, repeat_delay=1000)
     animate.save('diffusion.gif')
-    # plt.show()
     plt.savefig("./result.png")
 
     #------------------------------------#
