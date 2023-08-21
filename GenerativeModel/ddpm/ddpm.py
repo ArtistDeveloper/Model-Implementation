@@ -1,29 +1,24 @@
 import os
 import math
 import numpy as np
+import requests
+from PIL import Image
 from inspect import isfunction
 from functools import partial
 
 import matplotlib.pyplot as plt
-from tqdm.auto import tqdm
-# from einops import rearrange, reduce
-# from einops.layers.torch import Rearrange
-
-from PIL import Image
-import requests
-
-import torch
-from torch import nn, einsum
-import torch.nn.functional as F
-
 import matplotlib.image as img
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
+from tqdm.auto import tqdm
+
+import torch
+import torch.nn.functional as F
 from torchvision.transforms import Compose, ToTensor, Lambda, ToPILImage, CenterCrop, Resize
+from torch import nn, einsum
 
 
-#----------------------------------------------------#
 from einops import rearrange, reduce
 from einops.layers.torch import Rearrange
 from datasets import load_dataset
@@ -34,10 +29,7 @@ from torch.optim import Adam
 from torchvision.utils import save_image
 
 
-#----------------------------------------------------#
 
-
-#----------------------------------------------------#
 """Network helper""" 
 def exists(x):
     return x is not None
@@ -574,8 +566,7 @@ class Diffusion(nn.Module):
         batch_size = shape[0] # shpae: batch, channel, img_size, img_size       
         
         # 이미지는 순수한 노이즈에서 시작 (배치의 각 예제에 대해)
-        img = torch.randn(shape, device=device) # shape=(64, 1, 28, 28)
-        print("img.shape: ", img.shape)
+        img = torch.randn(shape, device=device) # shape=(64, 1, 28, 28)        
         imgs = []
         for i in tqdm(reversed(range(0, Diffusion.t_timesteps)), desc='sampling loop time step', total=Diffusion.t_timesteps):
             img = self.p_sample(model, img, torch.full((batch_size,), i, device=device, dtype=torch.long), i)
@@ -692,6 +683,8 @@ if __name__ == '__main__':
     for epoch in range(epochs):
         for step, batch in enumerate(dataloader):
             optimizer.zero_grad()
+
+            print("batch type", type(batch))            
 
             batch_size = batch["pixel_values"].shape[0]
             batch = batch["pixel_values"].to(device)
