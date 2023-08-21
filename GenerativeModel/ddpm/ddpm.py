@@ -40,8 +40,8 @@ def default(val, d):
 
 
 def num_to_groups(num, divisor):
-    groups = num // divisor
-    remainder = num % divisor
+    groups = num // divisor # 4 // 128 = 0
+    remainder = num % divisor # 4 % 128 = 4
     arr = [divisor] * groups # divisor값을 갖는 요소를 groups의 횟수만큼 반복해서 list에 넣음. divisor: 3, groups: 4라면 [3, 3, 3, 3]이다.
     if remainder > 0:
         arr.append(remainder)
@@ -570,12 +570,14 @@ class Diffusion(nn.Module):
         batch_size = shape[0] # shpae: batch, channel, img_size, img_size       
         
         # 이미지는 순수한 노이즈에서 시작 (배치의 각 예제에 대해)
-        img = torch.randn(shape, device=device) # shape=(64, 1, 28, 28)        
+        img = torch.randn(shape, device=device) # shape=(batch_size, channels, img_size, img_size)
         imgs = []
         for i in tqdm(reversed(range(0, Diffusion.t_timesteps)), desc='sampling loop time step', total=Diffusion.t_timesteps):
             img = self.p_sample(model, img, torch.full((batch_size,), i, device=device, dtype=torch.long), i)
             imgs.append(img.cpu().numpy())
+            # imgs.append(img.cpu())
 
+        # timestep의 이미지만큼 sampling해서 이미지들을 반환한다. timestep이 300이면 300개의 이미지가 담긴 1차원 벡터 반환
         return imgs
 
     
@@ -616,15 +618,14 @@ class Diffusion(nn.Module):
         # 원본 이미지
         x_start = transform(image).unsqueeze(0) 
 
-        # take time step
+        # 특정 타임 스텝 취해보기 (여기선 40)
         t = torch.tensor([40])
 
-        # get noisy_image
+        # 노이즈 이미지 얻기
         noisy_image = self.get_noisy_image(x_start, t)
         
         print(type(noisy_image))
         plt.imshow(noisy_image)
-        # plt.show()
         plt.savefig('./noisy.png')
         
 
@@ -635,9 +636,10 @@ def save_model(model, SAVED_MODEL_DIR):
 
 # 정리된 main
 if __name__ == '__main__':
-    TIMESTEPS = 100
+    TIMESTEPS = 10
     SAVED_MODEL_DIR = r"/workspace/Model-Implementation/GenerativeModel/ddpm/saved_model"
     DIFFUSION_RESULTS_PATH = r"/workspace/Model-Implementation/GenerativeModel/ddpm/results"
+    SAVE_AND_SAMPLE_EVERY = 100
 
     diffusion_model = Diffusion(total_timesteps=TIMESTEPS)
     # diffusion_model.test_forward_process()
@@ -661,13 +663,10 @@ if __name__ == '__main__':
     # 데이터로더 생성
     dataloader = DataLoader(transformed_dataset["train"], batch_size=batch_size, shuffle=True)
 
-    batch = next(iter(dataloader))
-    print(batch.keys())
-
     # 모델 학습
     results_folder = Path(DIFFUSION_RESULTS_PATH)
     results_folder.mkdir(exist_ok = True)
-    save_and_sample_every = 1000
+    
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -681,15 +680,12 @@ if __name__ == '__main__':
     optimizer = Adam(model.parameters(), lr=1e-3)
 
     epochs = 1
-
     for epoch in range(epochs):
         for step, batch in enumerate(dataloader):
-            optimizer.zero_grad()
-
-            print("batch type", type(batch))            
+            optimizer.zero_grad()        
 
             batch_size = batch["pixel_values"].shape[0]
-            batch = batch["pixel_values"].to(device)
+            batch = batch["pixel_values"].to(device) # shaep = [128, 1, 28, 28]
 
             # 알고리즘 1, 3번째 줄: 배치의 모든 예제에 대해 균일하게 t를 샘플링한다.
             t = torch.randint(0, TIMESTEPS, (batch_size,), device=device).long()
@@ -703,15 +699,17 @@ if __name__ == '__main__':
             optimizer.step()
 
             # 생성된 이미지 저장
-            if step != 0 and step % save_and_sample_every == 0:
-                print('왜 저장안대지')
-                milestone = step // save_and_sample_every
-                batches = num_to_groups(4, batch_size)
+            if step != 0 and step % SAVE_AND_SAMPLE_EVERY == 0:
+                milestone = step // SAVE_AND_SAMPLE_EVERY
+                batches = num_to_groups(4, batch_size) # 4, 128, batches = [4]
+
+                # 배치 크기 별로 이미지 샘플링
+                # map: 리스트의 요소를 지정된 함 수로 처리해준다. map(function, iterable)
                 all_images_list = list(map(lambda n: diffusion_model.sample(model, image_size, batch_size=n, channels=channels), batches))
-                all_images = torch.cat(all_images_list, dim=0)
-                all_images = (all_images + 1) * 0.5
-                save_image(all_images, str(results_folder / f'sample-{milestone}.png'), nrow = 6)
-                print('호출된거맞아?')
+                image_tensors = [torch.tensor(image) for image in all_images_list[0]] # 첫 번째 배치의 이미지 리스트를 가져오고, 각 이미지를 텐서로 변환
+                all_images_tensor = torch.cat(image_tensors, dim=0) # 모든 이미지를 하나의 텐서로 연결
+                all_images_tensor = (all_images_tensor + 1) * 0.5 # 이미지 값 범위를 [0, 1]로 조정
+                save_image(all_images_tensor, str(results_folder / f'sample-{milestone}.png'), nrow=6)
 
 
     # 모델 저장
