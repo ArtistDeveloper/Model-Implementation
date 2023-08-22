@@ -671,10 +671,10 @@ if __name__ == '__main__':
 
     image_size = 256
     channels = 1
-    batch_size = 2
+    batch_size = 8
 
     # 데이터로더 생성
-    dataloader = get_rsna_dataloader(PNG_DATA_DIR, batch_size, eval_batchsize=10, image_size=image_size)
+    dataloader = get_rsna_dataloader(PNG_DATA_DIR, batch_size, eval_batchsize=8, image_size=image_size)
 
     diffusion_model = Diffusion(total_timesteps=TIMESTEPS)
     # diffusion_model.test_forward_process()
@@ -700,7 +700,8 @@ if __name__ == '__main__':
 
     epochs = 40
     for epoch in range(epochs):
-        for step, batch in enumerate(dataloader):
+        # for step, batch in tqdm(enumerate(dataloader)):
+        for step, batch in enumerate(tqdm(dataloader)):
             optimizer.zero_grad()        
 
             batch_size = batch.shape[0]
