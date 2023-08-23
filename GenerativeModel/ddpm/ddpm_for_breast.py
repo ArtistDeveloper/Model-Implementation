@@ -602,14 +602,14 @@ class Diffusion(nn.Module):
         batch_size = shape[0] # shpae: batch, channel, img_size, img_size       
         
         # 이미지는 순수한 노이즈에서 시작 (배치의 각 예제에 대해)
-        batch_img = torch.randn(shape, device=device) # shape=(batch_size, channels, img_size, img_size) [4,1,28,28]
-        batch_imgs = []
+        batch_imgs = torch.randn(shape, device=device) # shape=(batch_size, channels, img_size, img_size) [4,1,28,28]
+        total_imgs = []
         for i in tqdm(reversed(range(0, Diffusion.t_timesteps)), desc='sampling loop time step', total=Diffusion.t_timesteps):
-            batch_img = self.p_sample(model, img, torch.full((batch_size,), i, device=device, dtype=torch.long), i)
-            batch_imgs.append(batch_img.cpu().numpy())
+            batch_imgs = self.p_sample(model, batch_imgs, torch.full((batch_size,), i, device=device, dtype=torch.long), i)
+            total_imgs.append(batch_imgs.cpu().numpy())
 
         # timestep의 이미지만큼 sampling해서 이미지들을 반환한다. timestep이 300이면 300개의 이미지가 담긴 1차원 벡터 반환
-        extracted_imgs = batch_imgs[0:Diffusion.t_timesteps:skip_step]
+        extracted_imgs = total_imgs[0:Diffusion.t_timesteps:skip_step]
         return extracted_imgs
 
     
