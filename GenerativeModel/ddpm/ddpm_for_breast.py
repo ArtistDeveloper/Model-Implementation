@@ -285,7 +285,7 @@ class Unet(nn.Module):
         print("in_out: ", in_out)
 
         # block_klass는 인자 groups가 resnet_block_groups으로 설정된 ResnetBlock 함수? 클래스이다.
-        block_klass = partial(ResnetBlock, groups=resnet_block_groups) 
+        block_klass = partial(ResnetBlock, groups=resnet_block_groups)
         print("block_klass type: ", type(block_klass))
 
         # time embeddings
@@ -667,7 +667,7 @@ def save_model(model, SAVED_MODEL_DIR):
 
 
 def get_rsna_dataloader(png_dir, train_batchsize=32, eval_batchsize = 10, image_size = 256):
-    dataset = RSNADataset(PNG_DATA_DIR, image_size, False)
+    dataset = RSNADataset(png_dir, image_size, False)
     dataset_size = len(dataset)
     print("dataset_size: ", dataset_size)
 
@@ -693,8 +693,7 @@ def get_rsna_dataloader(png_dir, train_batchsize=32, eval_batchsize = 10, image_
     return train_loader
 
 
-
-if __name__ == '__main__':
+def main():
     TIMESTEPS = 1000
     DDPM_DIR = r"/workspace/Model-Implementation/GenerativeModel/ddpm"
     SAVED_MODEL_DIR = r"/workspace/Model-Implementation/GenerativeModel/ddpm/saved_model"
@@ -752,8 +751,8 @@ if __name__ == '__main__':
             optimizer.step()
 
             # 생성된 이미지 저장
-            if True:
-            # if step != 0 and step % SAVE_AND_SAMPLE_EVERY == 0:
+            # if True:
+            if step != 0 and step % SAVE_AND_SAMPLE_EVERY == 0:
                 print("step: ", step)
                 milestone = step // SAVE_AND_SAMPLE_EVERY
                 batches = num_to_groups(4, batch_size) # 4, 8, batches = [4]
@@ -767,7 +766,7 @@ if __name__ == '__main__':
                 all_images_tensor = torch.cat(image_tensors, dim=0) 
                 all_images_tensor = (all_images_tensor + 1) * 0.5 # 이미지 값 범위를 [0, 1]로 조정
                 print("all_images_tensor shape: ", all_images_tensor.shape)
-                save_image(all_images_tensor, str(results_folder / f'sample-{epoch}-{milestone}.png'), nrow=6)
+                save_image(all_images_tensor, str(results_folder / f'sample-{epoch}-{milestone}.png'), nrow=4)
 
 
     # 모델 저장
@@ -794,3 +793,7 @@ if __name__ == '__main__':
     animate = animation.ArtistAnimation(fig, ims, interval=50, blit=True, repeat_delay=1000)
     animate.save(DDPM_DIR + "/diffusion.gif")
     plt.savefig(DDPM_DIR + "/result.png")
+
+
+if __name__ == '__main__':
+    main()
