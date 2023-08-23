@@ -234,8 +234,26 @@ class PreNorm(nn.Module):
 
 
 
-"""Conditional U-Net"""
 class Unet(nn.Module):
+    """
+    \epsilon(x_t, t) 네트워크의 역할은 노이즈 이미지와 각각의 노이즈 레벨을 batch로 받아서 입력에 추가된 노이즈를 output으로 출력한다:
+    (batch_size, num_channels, height, width) 형태의 노이즈 이미지와 (batch_size, 1) 형태의 노이즈 레벨 배치를 입력으로 받아서,
+    (batch_size, num_channels, height, width) 형태의 텐서를 반환한다.
+
+    네트워크의 구성:
+    먼저 노이즈 이미지에 컨볼루션 레이어가 적용되고 position embedding이 노이즈 레벨에 대해 계산된다.
+
+    다음으로 일련의 다운 샘플링 단계가 적용된다. 다운샘플링 단계는 
+    2개의 ResNet 블록 + groupnorm + attention + residual connection + 다운 샘플 연산으로 구성된다.
+
+    네트워크 중간에서 다시 ResNet block이 적용되고, attention으로 interleaved된다.
+
+    다음으로 일련의 업샘플링 단계가 적용된다. 각 업샘플링 단계는 
+    2개의 ResNet 블록 + groupnorm + attention + residual connection + 업샘플링 연산으로 구성된다.
+
+    마지막으로 ResNet 블록과 컨볼루션 레이어가 적용된다.
+
+    """
     def __init__(
         self,
         dim, # image_size
@@ -248,21 +266,31 @@ class Unet(nn.Module):
     ):
         super().__init__()
 
-        # determine dimensions
+        # 차원 결정
         self.channels = channels
         self.self_condition = self_condition
-        input_channels = channels * (2 if self_condition else 1)
+        input_channels = channels * (2 if self_condition else 1) # 1 * 1 = input_channel = 1
 
-        init_dim = default(init_dim, dim)
-        self.init_conv = nn.Conv2d(input_channels, init_dim, 1, padding=0) # changed to 1 and 0 from 7,3
+        init_dim = default(init_dim, dim) # init_dim: dim
+        print("init_dim: ", init_dim)
+
+        self.init_conv = nn.Conv2d(input_channels, init_dim, 1, padding=0)
 
         dims = [init_dim, *map(lambda m: dim * m, dim_mults)]
-        in_out = list(zip(dims[:-1], dims[1:]))
+        print("dims: ", dims)
+        print("len dims: ", len(dims))
 
-        block_klass = partial(ResnetBlock, groups=resnet_block_groups)
+        in_out = list(zip(dims[:-1], dims[1:])) # syntax testing에서 한 번 값 넣고 테스트 해보기, in_out이 뭐할 때 쓰는 변수지?
+        print("in_out type: ", type(in_out))
+        print("in_out: ", in_out)
+
+        # block_klass는 인자 groups가 resnet_block_groups으로 설정된 ResnetBlock 함수? 클래스이다.
+        block_klass = partial(ResnetBlock, groups=resnet_block_groups) 
+        print("block_klass type: ", type(block_klass))
 
         # time embeddings
         time_dim = dim * 4
+        print("time_dim: ", time_dim)
 
         self.time_mlp = nn.Sequential(
             SinusoidalPositionEmbeddings(dim),
@@ -276,8 +304,8 @@ class Unet(nn.Module):
         self.ups = nn.ModuleList([])
         num_resolutions = len(in_out)
 
-        for ind, (dim_in, dim_out) in enumerate(in_out):
-            is_last = ind >= (num_resolutions - 1)
+        for idx, (dim_in, dim_out) in enumerate(in_out):
+            is_last = idx >= (num_resolutions - 1)
 
             self.downs.append(
                 nn.ModuleList(
@@ -291,6 +319,11 @@ class Unet(nn.Module):
                     ]
                 )
             )
+
+        print("self.downs len: ", len(self.downs))
+        print("self.downs: ", self.downs)
+
+
 
         mid_dim = dims[-1]
         self.mid_block1 = block_klass(mid_dim, mid_dim, time_emb_dim=time_dim)
@@ -558,31 +591,31 @@ class Diffusion(nn.Module):
 
 
     @torch.no_grad()
-    def p_sample_loop(self, model, shape):
+    def p_sample_loop(self, model, shape, skip_step):
         """
         알고리즘 2를 구현한 것이다. (모든 이미지 반환 포함)
         샘플링된 이미지들을 반환하기 위해 imgs 배열에 샘플링된 이미지를 추가한다.
         샘플링의 timestep은 마지막부터 시작하여 1까지 반복하여 list를 reverse하여 반복한다.
         """
-
         device = next(model.parameters()).device
 
         batch_size = shape[0] # shpae: batch, channel, img_size, img_size       
         
         # 이미지는 순수한 노이즈에서 시작 (배치의 각 예제에 대해)
-        img = torch.randn(shape, device=device) # shape=(batch_size, channels, img_size, img_size) [4,1,28,28]
-        imgs = []
+        batch_img = torch.randn(shape, device=device) # shape=(batch_size, channels, img_size, img_size) [4,1,28,28]
+        batch_imgs = []
         for i in tqdm(reversed(range(0, Diffusion.t_timesteps)), desc='sampling loop time step', total=Diffusion.t_timesteps):
-            img = self.p_sample(model, img, torch.full((batch_size,), i, device=device, dtype=torch.long), i)
-            imgs.append(img.cpu().numpy())
+            batch_img = self.p_sample(model, img, torch.full((batch_size,), i, device=device, dtype=torch.long), i)
+            batch_imgs.append(batch_img.cpu().numpy())
 
         # timestep의 이미지만큼 sampling해서 이미지들을 반환한다. timestep이 300이면 300개의 이미지가 담긴 1차원 벡터 반환
-        return imgs
+        extracted_imgs = batch_imgs[0:Diffusion.t_timesteps:skip_step]
+        return extracted_imgs
 
     
     @torch.no_grad()
-    def sample(self, model, image_size, batch_size=16, channels=3):
-        return self.p_sample_loop(model, shape=(batch_size, channels, image_size, image_size))
+    def sample(self, model, image_size, batch_size=16, channels=3, skip_step=1):
+        return self.p_sample_loop(model, shape=(batch_size, channels, image_size, image_size), skip_step=skip_step)
     
 
     def get_noisy_image(self, x_start, target_t):
@@ -660,7 +693,7 @@ def get_rsna_dataloader(png_dir, train_batchsize=32, eval_batchsize = 10, image_
     return train_loader
 
 
-# 정리된 main
+
 if __name__ == '__main__':
     TIMESTEPS = 1000
     DDPM_DIR = r"/workspace/Model-Implementation/GenerativeModel/ddpm"
@@ -671,10 +704,10 @@ if __name__ == '__main__':
 
     image_size = 256
     channels = 1
-    batch_size = 8
+    dataloader_batch_size = 8
 
     # 데이터로더 생성
-    dataloader = get_rsna_dataloader(PNG_DATA_DIR, batch_size, eval_batchsize=8, image_size=image_size)
+    dataloader = get_rsna_dataloader(PNG_DATA_DIR, dataloader_batch_size, eval_batchsize=8, image_size=image_size)
 
     diffusion_model = Diffusion(total_timesteps=TIMESTEPS)
     # diffusion_model.test_forward_process()
@@ -689,7 +722,7 @@ if __name__ == '__main__':
     model = Unet(
         dim=image_size,
         channels=channels,
-        dim_mults=(1, 2, 4,)
+        dim_mults=(1, 2, 4)
     )
     
     if torch.cuda.device_count() > 1:
@@ -699,18 +732,18 @@ if __name__ == '__main__':
     optimizer = Adam(model.parameters(), lr=1e-3)
 
     epochs = 40
-    for epoch in range(epochs):
+    for epoch in tqdm(range(epochs)):
         # for step, batch in tqdm(enumerate(dataloader)):
-        for step, batch in enumerate(tqdm(dataloader)):
+        for step, image_batch in enumerate(tqdm(dataloader)):
             optimizer.zero_grad()        
 
-            batch_size = batch.shape[0]
-            batch = batch.to(device) 
+            batch_size = image_batch.shape[0]
+            image_batch = image_batch.to(device) 
 
             # 알고리즘 1, 3번째 줄: 배치의 모든 예제에 대해 균일하게 t를 샘플링한다.
             t = torch.randint(0, TIMESTEPS, (batch_size,), device=device).long()
 
-            loss = diffusion_model.p_losses(model, batch, t, noise=None, loss_type="huber")
+            loss = diffusion_model.p_losses(model, image_batch, t, noise=None, loss_type="huber")
 
             if step % 100 == 0:
                 print("Loss:", loss.item())
@@ -719,18 +752,22 @@ if __name__ == '__main__':
             optimizer.step()
 
             # 생성된 이미지 저장
-            if step != 0 and step % SAVE_AND_SAMPLE_EVERY == 0:
+            if True:
+            # if step != 0 and step % SAVE_AND_SAMPLE_EVERY == 0:
+                print("step: ", step)
                 milestone = step // SAVE_AND_SAMPLE_EVERY
-                batches = num_to_groups(4, batch_size) # 4, 128, batches = [4]
+                batches = num_to_groups(4, batch_size) # 4, 8, batches = [4]
+                print("batches: ", batches)
 
-                # map: 리스트의 요소를 지정된 함 수로 처리해준다. map(function, iterable)
+                # map: 리스트의 요소를 지정된 함수로 처리해준다. map(function, iterable)
                 # 첫 번째 배치의 이미지 리스트를 가져오고, 각 이미지를 텐서로 변환. 이미지는 batches * timestep의 개수만큼 반환되어 온다.
                 # 여기서 batches는 4이고, TIMESTEPS은 10이라면 총 40개의 이미지를 가져오게 된다.
-                all_images_list = list(map(lambda n: diffusion_model.sample(model, image_size, batch_size=n, channels=channels), batches))
+                all_images_list = list(map(lambda n: diffusion_model.sample(model, image_size, batch_size=n, channels=channels, skip_step=100), batches))
                 image_tensors = [torch.tensor(image) for image in all_images_list[0]] 
                 all_images_tensor = torch.cat(image_tensors, dim=0) 
                 all_images_tensor = (all_images_tensor + 1) * 0.5 # 이미지 값 범위를 [0, 1]로 조정
-                save_image(all_images_tensor, str(results_folder / f'sample-{milestone}.png'), nrow=6)
+                print("all_images_tensor shape: ", all_images_tensor.shape)
+                save_image(all_images_tensor, str(results_folder / f'sample-{epoch}-{milestone}.png'), nrow=6)
 
 
     # 모델 저장
