@@ -23,6 +23,7 @@ from torchvision.transforms import Compose, ToTensor, Lambda, ToPILImage, Center
 from torch import nn, einsum
 from torchvision import transforms
 from torch.utils.data import DataLoader
+from torchvision import datasets
 from torch.optim import Adam
 from torchvision.utils import save_image
 
@@ -284,7 +285,7 @@ class Unet(nn.Module):
         print("in_out type: ", type(in_out))
         print("in_out: ", in_out)
 
-        # block_klass는 인자 groups가 resnet_block_groups으로 설정된 ResnetBlock 함수? 클래스이다.
+        # block_klass는 ResnetBlock 클래스의 인자 groups가 resnet_block_groups으로 설정된 ResneBlock 함수(클래스).
         block_klass = partial(ResnetBlock, groups=resnet_block_groups)
         print("block_klass type: ", type(block_klass))
 
@@ -303,7 +304,10 @@ class Unet(nn.Module):
         self.downs = nn.ModuleList([])
         self.ups = nn.ModuleList([])
         num_resolutions = len(in_out)
-
+        print("num_resolutions: ", num_resolutions)
+        
+        
+        # NOTE: 
         for idx, (dim_in, dim_out) in enumerate(in_out):
             is_last = idx >= (num_resolutions - 1)
 
@@ -329,7 +333,8 @@ class Unet(nn.Module):
         self.mid_block1 = block_klass(mid_dim, mid_dim, time_emb_dim=time_dim)
         self.mid_attn = Residual(PreNorm(mid_dim, Attention(mid_dim)))
         self.mid_block2 = block_klass(mid_dim, mid_dim, time_emb_dim=time_dim)
-
+        
+        
         for ind, (dim_in, dim_out) in enumerate(reversed(in_out)):
             is_last = ind == (len(in_out) - 1)
 
@@ -610,6 +615,10 @@ class Diffusion(nn.Module):
 
         # timestep의 이미지만큼 sampling해서 이미지들을 반환한다. timestep이 300이면 300개의 이미지가 담긴 1차원 벡터 반환
         extracted_imgs = total_imgs[0:Diffusion.t_timesteps:skip_step]
+        print("extracted_imgs: ", len(extracted_imgs))
+        extracted_imgs.append(total_imgs[Diffusion.t_timesteps - 1])
+        print("extracted_imgs: ", len(extracted_imgs))
+        
         return extracted_imgs
 
     
@@ -693,6 +702,25 @@ def get_rsna_dataloader(png_dir, train_batchsize=32, eval_batchsize = 10, image_
     return train_loader
 
 
+def get_cifar10_dataloader(batch_size = 32):
+    train_dataset = datasets.CIFAR10(root='/workspace/dataset/', train=True, download=True, transform=transforms.ToTensor())
+    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+    
+    return train_loader    
+    
+    # def test_transforms(examples):
+    #     examples["pixel_values"] = [transform(image.convert("L")) for image in examples["image"]]
+    #     del examples["image"]
+
+    #     return examples
+    
+    # dataset = load_dataset("cifar10")
+    # transformed_dataset = dataset.with_transform(test_transforms).remove_columns("label")
+    # dataloader = DataLoader(transformed_dataset["train"], batch_size=batch_size, shuffle=True)
+    
+    # return dataloader
+
+
 def main():
     TIMESTEPS = 1000
     DDPM_DIR = r"/workspace/Model-Implementation/GenerativeModel/ddpm"
@@ -701,12 +729,13 @@ def main():
     SAVE_AND_SAMPLE_EVERY = 1000
     PNG_DATA_DIR =  r"/workspace/rsna_data"
 
-    image_size = 256
-    channels = 1
-    dataloader_batch_size = 8
+    image_size = 32 
+    channels = 3
+    dataloader_batch_size = 32
 
     # 데이터로더 생성
-    dataloader = get_rsna_dataloader(PNG_DATA_DIR, dataloader_batch_size, eval_batchsize=8, image_size=image_size)
+    # dataloader = get_rsna_dataloader(PNG_DATA_DIR, dataloader_batch_size, eval_batchsize=8, image_size=image_size)
+    dataloader = get_cifar10_dataloader(dataloader_batch_size)
 
     diffusion_model = Diffusion(total_timesteps=TIMESTEPS)
     # diffusion_model.test_forward_process()
@@ -735,9 +764,18 @@ def main():
         # for step, batch in tqdm(enumerate(dataloader)):
         for step, image_batch in enumerate(tqdm(dataloader)):
             optimizer.zero_grad()        
-
-            batch_size = image_batch.shape[0]
-            image_batch = image_batch.to(device) 
+            
+            # print("image_batch len: ", len(image_batch))
+            # print("image_batch len[0]: ", len(image_batch[0]))
+            # print("image_batch len[1]: ", len(image_batch[1]))
+            # print("image_batch len[1]: ", image_batch[1])
+            # print("image_batch len[0][0]: ", len(image_batch[0][0]))
+            
+            batch_size = len(image_batch[0])
+            image_batch = torch.Tensor(image_batch[0]).to(device)
+            
+            # batch_size = image_batch["pixel_value"].shape[0]
+            # batch = image_batch["pixel_value"].to(device)
 
             # 알고리즘 1, 3번째 줄: 배치의 모든 예제에 대해 균일하게 t를 샘플링한다.
             t = torch.randint(0, TIMESTEPS, (batch_size,), device=device).long()
