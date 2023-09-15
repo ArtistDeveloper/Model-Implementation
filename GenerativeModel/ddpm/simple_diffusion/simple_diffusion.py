@@ -1,24 +1,21 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# ### Get dataset
-
-# In[1]:
-
-
 import torch
 import torchvision
+import torch.nn.functional as F
+from torchvision import transforms
+
 import matplotlib.pyplot as plt
+
+
 from Model_Implementation.GenerativeModel.ddpm.simple_diffusion.rsna_breast_cancer import (
     RSNADataset,
 )
 
 
-# TODO: RSNA Dataset에서 Resize 기능 적용하여 show_images 제대로 작동하게 만들기
-def show_images(datset, num_samples=20, cols=4):
+def show_images(dataset, num_samples=20, cols=4):
     """Plots some samples from the dataset"""
     plt.figure(figsize=(15, 15))
-    for i, img in enumerate(datset):
+
+    for i, img in enumerate(dataset):
         if i == num_samples:
             break
         plt.subplot(int(num_samples / cols) + 1, cols, i + 1)
@@ -27,59 +24,62 @@ def show_images(datset, num_samples=20, cols=4):
     plt.savefig("./test.png")
 
 
+# Forward process
+def linear_beta_schedule(timesteps, start=0.0001, end=0.02):
+    return torch.linspace(start, end, timesteps)
+
+
+def get_index_from_list(vals, t, x_shape):
+    batch_size = t.shape[0]
+    out = vals.gather(-1, t.cpu())
+    return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(t.device)
+
+
+def forward_diffusion_sample(x_0, t, device="cpu"):
+    noise = torch.randn_like(x_0)
+    sqrt_alphas_cumprod_t = get_index_from_list(sqrt_alphas_cumprod, t, x_0.shape)
+    sqrt_one_minus_alphas_cumprod_t = get_index_from_list(
+        sqrt_one_minus_alphas_cumprod, t, x_0.shape
+    )
+
+    # mean + variance
+    return sqrt_alphas_cumprod_t.to(device) * x_0.to(device) \
+    + sqrt_one_minus_alphas_cumprod_t.to(device) * noise.to(device), noise.to(device)
+
+
+T = 300
+betas = linear_beta_schedule(timesteps=T)
+
+# Pre-calculate different terms for closed form
+alphas = 1.0 - betas
+alphas_cumprod = torch.cumprod(alphas, axis=0)
+alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.0)
+
+sqrt_recip_alphas = torch.sqrt(1.0 / alphas)
+sqrt_alphas_cumprod = torch.sqrt(alphas_cumprod)
+sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - alphas_cumprod)
+
+posterior_variance = betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod)
+
+
+
 def main():
-    data = RSNADataset("/workspace/rsna_data/", 64)
-    show_images(data)
+    img_transform = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.Resize(size=(64, 64)),
+        ]
+    )
+
+    dataset = RSNADataset("/workspace/rsna_data/", img_transform)
+    show_images(dataset)
 
 
 if __name__ == "__main__":
     main()
 
 
-# ### Forward process
 
-# In[2]:
-
-
-# import torch.nn.functional as F
-
-
-# def linear_beta_schedule(timesteps, start=0.0001, end=0.02):
-#     return torch.linspace(start, end, timesteps)
-
-
-# def get_index_from_list(vals, t, x_shape):
-#     batch_size = t.shape[0]
-#     out = vals.gather(-1, t.cpu())
-#     return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(t.device)
-
-
-# def forward_diffusion_sample(x_0, t, device="cpu"):
-#     noise = torch.randn_like(x_0)
-#     sqrt_alphas_cumprod_t = get_index_from_list(sqrt_alphas_cumprod, t, x_0.shape)
-#     sqrt_one_minus_alphas_cumprod_t = get_index_from_list(
-#         sqrt_one_minus_alphas_cumprod, t, x_0.shape
-#     )
-
-#     # mean + variance
-#     return sqrt_alphas_cumprod_t.to(device) * x_0.to(
-#         device
-#     ) + sqrt_one_minus_alphas_cumprod_t.to(device) * noise.to(device), noise.to(device)
-
-
-# T = 300
-# betas = linear_beta_schedule(timesteps=T)
-
-# # Pre-calculate different terms for closed form
-# alphas = 1.0 - betas
-# alphas_cumprod = torch.cumprod(alphas, axis=0)
-# alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.0)
-
-# sqrt_recip_alphas = torch.sqrt(1.0 / alphas)
-# sqrt_alphas_cumprod = torch.sqrt(alphas_cumprod)
-# sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - alphas_cumprod)
-
-# posterior_variance = betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod)
 
 
 # # In[3]:
