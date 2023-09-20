@@ -13,7 +13,7 @@ import os
 import time
 
 
-from Model_Implementation.GenerativeModel.ddpm.simple_diffusion.rsna_breast_cancer import (
+from Model_Implementation.GenerativeModel.dataset_class.rsna_breast_cancer import (
     RSNADataset,
 )
 
@@ -99,7 +99,7 @@ def do_forward_process(image):
         img, noise = forward_diffusion_sample(image, t)
         show_tensor_image(img)
         
-    plt.savefig("./test2.png")
+    plt.savefig("./forward_process_test.png")
 
 
 def get_flower_dataset(img_size):
