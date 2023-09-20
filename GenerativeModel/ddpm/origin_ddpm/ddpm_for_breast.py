@@ -34,7 +34,9 @@ from torchvision import datasets
 from torch.optim import Adam
 from torchvision.utils import save_image
 
-from rsna_breast_cancer import RSNADataset
+from Model_Implementation.GenerativeModel.dataset_class.rsna_breast_cancer import (
+    RSNADataset,
+)
 
 """Network helper"""
 
@@ -714,7 +716,14 @@ def save_model(model, SAVED_MODEL_DIR):
 
 
 def get_rsna_dataloader(png_dir, train_batchsize=32, eval_batchsize=10, image_size=256):
-    dataset = RSNADataset(png_dir, image_size, False)
+    img_transform = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.Resize(size=(image_size, image_size)),
+        ]
+    )
+    
+    dataset = RSNADataset(png_dir, img_transform)
     dataset_size = len(dataset)
     print("dataset_size: ", dataset_size)
 
@@ -768,30 +777,31 @@ def get_cifar10_dataloader(batch_size=32):
 
 def main():
     TIMESTEPS = 1000
-    DDPM_DIR = r"/workspace/Model-Implementation/GenerativeModel/ddpm"
+    DDPM_DIR = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm"
     SAVED_MODEL_DIR = (
-        r"/workspace/Model-Implementation/GenerativeModel/ddpm/saved_model"
+        r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/saved_model"
     )
     DIFFUSION_RESULTS_PATH = (
-        r"/workspace/Model-Implementation/GenerativeModel/ddpm/results"
+        r"/workspace/Model-Implementation/GenerativeModel/ddpm/origin_ddpm/results"
     )
     SAVE_AND_SAMPLE_EVERY = 1000
     PNG_DATA_DIR = r"/workspace/rsna_data"
 
-    image_size = 32
-    channels = 3
-    dataloader_batch_size = 32
+    image_size = 256
+    channels = 1
+    dataloader_batch_size = 1
 
     # 데이터로더 생성
-    # dataloader = get_rsna_dataloader(PNG_DATA_DIR, dataloader_batch_size, eval_batchsize=8, image_size=image_size)
-    dataloader = get_cifar10_dataloader(dataloader_batch_size)
+    dataloader = get_rsna_dataloader(PNG_DATA_DIR, dataloader_batch_size, eval_batchsize=8, image_size=image_size)
+    # dataloader = get_cifar10_dataloader(dataloader_batch_size)
 
     diffusion_model = Diffusion(total_timesteps=TIMESTEPS)
     # diffusion_model.test_forward_process()
 
     # 모델 학습
     results_folder = Path(DIFFUSION_RESULTS_PATH)
-    results_folder.mkdir(exist_ok=True)
+    print("results_folder", results_folder)
+    # results_folder.mkdir(exist_ok=True)
 
     device = "cuda:3" if torch.cuda.is_available() else "cpu"
 
