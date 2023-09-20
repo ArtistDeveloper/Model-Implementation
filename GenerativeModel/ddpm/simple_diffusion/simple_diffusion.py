@@ -84,7 +84,7 @@ def show_tensor_image(image):
     # Take first image of batch
     if len(image.shape) == 4:
         image = image[0, :, :, :]
-    plt.imshow(reverse_transforms(image))  # NOTE: origin: cmap=gray
+    plt.imshow(reverse_transforms(image), cmap='gray')  # NOTE: origin: cmap=gray
 
 
 def do_forward_process(image):
@@ -322,7 +322,9 @@ def main():
     epochs = 500  # Try more!
 
     for epoch in range(epochs):
+        start = time.time()
         for step, batch in enumerate(dataloader):
+            
             optimizer.zero_grad()
 
             t = torch.randint(0, T, (BATCH_SIZE,), device=device).long()
@@ -331,10 +333,14 @@ def main():
 
             loss.backward()
             optimizer.step()
-
+            
             if epoch % 5 == 0 and step == 0:
                 print(f"Epoch {epoch} | step {step:03d} Loss: {loss.item()} ")
                 sample_plot_image(model, device, os.path.join(SAMPLING_IMAGE_SAVE_PATH, str(epoch) + ", " + str(step)))
+                
+            end = time.time()
+        
+        print("1epoch time: ", end - start)
 
     
     torch.save(model, MODEL_PATH)
