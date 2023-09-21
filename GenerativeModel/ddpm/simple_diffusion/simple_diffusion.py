@@ -5,6 +5,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from torch import nn
 from torch.optim import Adam
+from torchvision.utils import save_image
 
 import numpy as np
 import math
@@ -84,7 +85,9 @@ def show_tensor_image(image):
     # Take first image of batch
     if len(image.shape) == 4:
         image = image[0, :, :, :]
+
     plt.imshow(reverse_transforms(image), cmap='gray')  # NOTE: origin: cmap=gray
+    return image
 
 
 def do_forward_process(image):
@@ -263,7 +266,7 @@ def sample_timestep(x, t, model):
 
 
 @torch.no_grad()
-def sample_plot_image(model, device, save_path):
+def sample_plot_image(model, device, save_path, epoch):
     # Sample noise
     img_size = IMG_SIZE
     channel_size = 1
@@ -281,9 +284,10 @@ def sample_plot_image(model, device, save_path):
         img = torch.clamp(img, -1.0, 1.0)
         if i % stepsize == 0:
             plt.subplot(1, num_images, int(i / stepsize) + 1)
-            show_tensor_image(img.detach().cpu())
-        
-    plt.savefig(save_path)
+            last_image = show_tensor_image(img.detach().cpu())
+
+    save_image(last_image, f"/workspace/Model_Implementation/GenerativeModel/ddpm/simple_diffusion/sampling_image/origin_size-{epoch}.png")
+    plt.savefig(save_path) 
 
 
 
@@ -336,7 +340,7 @@ def main():
             
             if epoch % 5 == 0 and step == 0:
                 print(f"Epoch {epoch} | step {step:03d} Loss: {loss.item()} ")
-                sample_plot_image(model, device, os.path.join(SAMPLING_IMAGE_SAVE_PATH, str(epoch) + ", " + str(step)))
+                sample_plot_image(model, device, os.path.join(SAMPLING_IMAGE_SAVE_PATH, str(epoch) + ", " + str(step)), epoch)
                 
             end = time.time()
         
