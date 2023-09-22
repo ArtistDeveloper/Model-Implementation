@@ -1,4 +1,5 @@
 import os
+import sys
 import math
 import numpy as np
 import requests
@@ -646,7 +647,7 @@ class Diffusion(nn.Module):
     def test_forward_process(self):
         image = test_load_image()
         
-        image_size = 128
+        image_size = 64
         transform = Compose([
             Resize(image_size),
             CenterCrop(image_size),
@@ -732,7 +733,7 @@ def main():
     SAVE_AND_SAMPLE_EVERY = 1000
     PNG_DATA_DIR =  r"/workspace/rsna_data"
 
-    image_size = 64
+    image_size = 128
     channels = 3
     dataloader_batch_size = 24
 
@@ -748,7 +749,7 @@ def main():
     results_folder.mkdir(exist_ok = True)
     
 
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    device = "cuda:2" if torch.cuda.is_available() else "cpu"
 
     model = Unet(
         dim=image_size,
@@ -757,7 +758,7 @@ def main():
     )
     
     if torch.cuda.device_count() > 1:
-        model = nn.DataParallel(model, device_ids=[0, 1]) 
+        model = nn.DataParallel(model, device_ids=[2, 3]) 
     model.to(device=device)
 
     optimizer = Adam(model.parameters(), lr=1e-3)
