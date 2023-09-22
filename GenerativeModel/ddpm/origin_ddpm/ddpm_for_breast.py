@@ -1537,19 +1537,8 @@ class Diffusion(nn.Module):
         # timestep의 이미지만큼 sampling해서 이미지들을 반환한다. timestep이 300이면 300개의 이미지가 담긴 1차원 벡터 반환
         print("len total_imgs: ", len(total_imgs))
         extracted_imgs = total_imgs[0 : Diffusion.t_timesteps : 100]
-        print("len extracted_imgs: ", len(extracted_imgs))
-        extracted_imgs.append(total_imgs[100])
-        extracted_imgs.append(total_imgs[200])
-        extracted_imgs.append(total_imgs[300])
-        extracted_imgs.append(total_imgs[400])
-        extracted_imgs.append(total_imgs[500])
-        extracted_imgs.append(total_imgs[600])
-        extracted_imgs.append(total_imgs[700])
-        extracted_imgs.append(total_imgs[800])
-        extracted_imgs.append(total_imgs[900])
-        extracted_imgs.append(total_imgs[999])
-        print("total_imgs[300].shape: ", total_imgs[300].shape)
-        print("len extracted_imgs(2): ", len(extracted_imgs))
+        extracted_imgs.append(total_imgs[Diffusion.t_timesteps - 1])
+        
         return extracted_imgs
 
     
@@ -1609,8 +1598,9 @@ def save_model(model, SAVED_MODEL_DIR):
 def get_rsna_dataloader(png_dir, train_batchsize=32, eval_batchsize = 10, image_size = 256):
     img_transform = transforms.Compose(
         [
-            transforms.ToTensor(),
             transforms.Resize(size=(image_size, image_size)),
+            transforms.ToTensor(),
+            transforms.Lambda(lambda t: (t * 2) - 1),  # NOTE: Scale between [-1, 1]
         ]
     )
     
@@ -1641,11 +1631,11 @@ def get_rsna_dataloader(png_dir, train_batchsize=32, eval_batchsize = 10, image_
 
 
 def main():
-    TIMESTEPS = 1000
+    TIMESTEPS = 700
     DDPM_DIR = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm"
     SAVED_MODEL_DIR = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/saved_model"
     DIFFUSION_RESULTS_PATH = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/results"
-    SAVE_AND_SAMPLE_EVERY = 1000
+    SAVE_AND_SAMPLE_EVERY = 7000
     PNG_DATA_DIR =  r"/workspace/rsna_data"
 
     image_size = 64
@@ -1663,7 +1653,7 @@ def main():
     results_folder.mkdir(exist_ok = True)
     
 
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    device = "cuda:2" if torch.cuda.is_available() else "cpu"
 
     model = Unet(
         dim=image_size,
@@ -1672,7 +1662,7 @@ def main():
     )
     
     if torch.cuda.device_count() > 1:
-        model = nn.DataParallel(model, device_ids=[0, 1]) 
+        model = nn.DataParallel(model, device_ids=[2, 3]) 
     model.to(device=device)
 
     optimizer = Adam(model.parameters(), lr=1e-3)
@@ -1737,9 +1727,9 @@ def main():
         im = plt.imshow(samples[i][random_index].reshape(image_size, image_size, channels), cmap="gray", animated=True)
         ims.append([im])
 
-    animate = animation.ArtistAnimation(fig, ims, interval=50, blit=True, repeat_delay=1000)
-    animate.save(DDPM_DIR + "/diffusion.gif")
-    plt.savefig(DDPM_DIR + "/result.png")
+    # animate = animation.ArtistAnimation(fig, ims, interval=50, blit=True, repeat_delay=1000)
+    # animate.save(DDPM_DIR + "/diffusion.gif")
+    # plt.savefig(DDPM_DIR + "/result.png")
 
 
 if __name__ == '__main__':
