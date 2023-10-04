@@ -684,10 +684,7 @@ def get_rsna_dataloader(png_dir, train_batchsize=32, eval_batchsize = 10, image_
     dataset_size = len(dataset)
     print("dataset_size: ", dataset_size)
 
-    # FIXME: 54706 나와야하는데, 합계가 54704가 나온다. 단순히 num값 다른데 더해서 하드코딩 해야하나?
-    # 54706 * 0.8 = 43764.8 나오는데 이러면 비율 하나 올려야 하나? 
-
-    train_loader = DataLoader(dataset, batch_size=train_batchsize, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=train_batchsize, shuffle=True)
 
     return train_loader
 
