@@ -1,6 +1,3 @@
-# ---------------------------- 과거 코드 보쌈 ---------------------------- #
-
-
 import os
 import math
 import numpy as np
@@ -687,24 +684,10 @@ def get_rsna_dataloader(png_dir, train_batchsize=32, eval_batchsize = 10, image_
     dataset_size = len(dataset)
     print("dataset_size: ", dataset_size)
 
-    train_fraction = 0.8
-    validation_fraction = 0.1
-    # test_fraction = 0.1
-
-    num_train = int(train_fraction * dataset_size)
-    num_validation = int(validation_fraction * dataset_size)
-    num_test = dataset_size - num_train - num_validation
-
     # FIXME: 54706 나와야하는데, 합계가 54704가 나온다. 단순히 num값 다른데 더해서 하드코딩 해야하나?
-    # 54706 * 0.8 = 43764.8 나오는데 이러면 비율 하나 올려야 하나?
+    # 54706 * 0.8 = 43764.8 나오는데 이러면 비율 하나 올려야 하나? 
 
-    train_dataset, validation_dataset, test_dataset = torch.utils.data.random_split(
-        dataset, [num_train, num_validation, num_test]
-    )    
-
-    train_loader = DataLoader(train_dataset, batch_size=train_batchsize, shuffle=True)
-    validation_loader = DataLoader(validation_dataset, batch_size=eval_batchsize)
-    test_loader = DataLoader(test_dataset, batch_size=eval_batchsize)
+    train_loader = DataLoader(dataset, batch_size=train_batchsize, shuffle=True)
 
     return train_loader
 
