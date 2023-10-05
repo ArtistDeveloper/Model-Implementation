@@ -26,7 +26,8 @@ class DukeDataset(Dataset):
         self.imgs = imgs
     
     def __getitem__(self, index):
-        img_path = os.path.join(self.data_dir, self.imgs[index])
+        file_path_index = 0
+        img_path = os.path.join(self.data_dir, self.imgs[index][file_path_index])
         img_arr = Image.open(img_path)
         
         if self.transform is not None:

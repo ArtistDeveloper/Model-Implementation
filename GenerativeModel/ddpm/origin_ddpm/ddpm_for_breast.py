@@ -26,9 +26,9 @@ from torch.utils.data import DataLoader
 from torch.optim import Adam
 from torchvision.utils import save_image
 
-from Model_Implementation.GenerativeModel.dataset_class.rsna_breast_cancer import (
-    RSNADataset,
-)
+from Model_Implementation.GenerativeModel.dataset_class.rsna_breast_cancer import RSNADataset
+from Model_Implementation.GenerativeModel.dataset_class.duke_dataset import DukeDataset
+
 
 """Network helper""" 
 def exists(x):
@@ -397,7 +397,6 @@ class Unet(nn.Module):
 
 
 
-# TODO : 무엇을 하는 함수인지 작성
 def apply_transforms(examples):
    examples["pixel_values"] = [transform(image.convert("L")) for image in examples["image"]]
    del examples["image"]
@@ -671,7 +670,7 @@ def save_model(model, SAVED_MODEL_DIR):
     torch.save(model.state_dict(), SAVED_MODEL_DIR + "/ddpm_state.pt")
 
 
-def get_rsna_dataloader(png_dir, train_batchsize=32, eval_batchsize = 10, image_size = 256):
+def get_rsna_dataloader(png_dir, train_batchsize=32, image_size=256):
     img_transform = transforms.Compose(
         [
             transforms.Resize(size=(image_size, image_size)),
@@ -684,9 +683,27 @@ def get_rsna_dataloader(png_dir, train_batchsize=32, eval_batchsize = 10, image_
     dataset_size = len(dataset)
     print("dataset_size: ", dataset_size)
 
-    train_loader = DataLoader(train_dataset, batch_size=train_batchsize, shuffle=True)
+    train_loader = DataLoader(dataset, batch_size=train_batchsize, shuffle=True)
 
     return train_loader
+
+
+def get_duke_dataloader(png_dir, train_batchsize=32, img_size=256):
+    img_transform = transforms.Compose(
+        [
+            transforms.Resize(size=(img_size, img_size)),
+            transforms.ToTensor(),
+            transforms.Lambda(lambda t: (t * 2) - 1),  # NOTE: Scale between [-1, 1]
+        ]
+    )
+    
+    dataset = DukeDataset(png_dir, img_transform)
+    print(len(dataset))
+    
+    train_lodaer = DataLoader(dataset, batch_size=train_batchsize, shuffle=True)
+    
+    return train_lodaer
+    
 
 
 def main():
@@ -696,13 +713,15 @@ def main():
     DIFFUSION_RESULTS_PATH = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/results"
     SAVE_AND_SAMPLE_EVERY = 7000
     PNG_DATA_DIR =  r"/workspace/rsna_data"
+    DUKE_DATA_DIR = r"/workspace/duke_data/png_out"
 
-    image_size = 64
+    img_size = 64
     channels = 1
     dataloader_batch_size = 2
 
     # 데이터로더 생성
-    dataloader = get_rsna_dataloader(PNG_DATA_DIR, dataloader_batch_size, eval_batchsize=8, image_size=image_size)
+    # dataloader = get_rsna_dataloader(PNG_DATA_DIR, dataloader_batch_size, img_size=img_size)
+    dataloader = get_duke_dataloader(DUKE_DATA_DIR, dataloader_batch_size, img_size)                         
 
     diffusion_model = Diffusion(total_timesteps=TIMESTEPS)
     # diffusion_model.test_forward_process()
@@ -715,7 +734,7 @@ def main():
     device = "cuda:2" if torch.cuda.is_available() else "cpu"
 
     model = Unet(
-        dim=image_size,
+        dim=img_size,
         channels=channels,
         dim_mults=(1, 2, 4)
     )
@@ -757,7 +776,7 @@ def main():
                 # map: 리스트의 요소를 지정된 함수로 처리해준다. map(function, iterable)
                 # 첫 번째 배치의 이미지 리스트를 가져오고, 각 이미지를 텐서로 변환. 이미지는 batches * timestep의 개수만큼 반환되어 온다.
                 # 여기서 batches는 4이고, TIMESTEPS은 10이라면 총 40개의 이미지를 가져오게 된다.
-                all_images_list = list(map(lambda n: diffusion_model.sample(model, image_size, batch_size=n, channels=channels, skip_step=100), batches))
+                all_images_list = list(map(lambda n: diffusion_model.sample(model, img_size, batch_size=n, channels=channels, skip_step=100), batches))
                 image_tensors = [torch.tensor(image) for image in all_images_list[0]] 
                 all_images_tensor = torch.cat(image_tensors, dim=0) 
                 all_images_tensor = (all_images_tensor + 1) * 0.5 # 이미지 값 범위를 [0, 1]로 조정
@@ -772,18 +791,18 @@ def main():
 
     # 샘플링 (inference)
     # 64개 이미지 샘플링
-    samples = diffusion_model.sample(model, image_size=image_size, batch_size=64, channels=channels)
+    samples = diffusion_model.sample(model, image_size=img_size, batch_size=64, channels=channels)
 
     # 샘플링 결과 아무거나 한 개 확인
     random_index = 5
-    plt.imshow(samples[-1][random_index].reshape(image_size, image_size, channels), cmap="gray")
+    plt.imshow(samples[-1][random_index].reshape(img_size, img_size, channels), cmap="gray")
 
     random_index = 53
 
     fig = plt.figure()
     ims = []
     for i in range(TIMESTEPS):
-        im = plt.imshow(samples[i][random_index].reshape(image_size, image_size, channels), cmap="gray", animated=True)
+        im = plt.imshow(samples[i][random_index].reshape(img_size, img_size, channels), cmap="gray", animated=True)
         ims.append([im])
 
     # animate = animation.ArtistAnimation(fig, ims, interval=50, blit=True, repeat_delay=1000)
