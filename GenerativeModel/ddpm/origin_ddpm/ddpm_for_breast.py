@@ -29,6 +29,7 @@ from torchvision.utils import save_image
 from Model_Implementation.GenerativeModel.dataset_class.rsna_breast_cancer import RSNADataset
 from Model_Implementation.GenerativeModel.dataset_class.duke_dataset import DukeDataset
 
+from ml_util.utility import save_model_wegights, load_model
 
 """Network helper""" 
 def exists(x):
@@ -745,7 +746,7 @@ def main():
 
     optimizer = Adam(model.parameters(), lr=1e-3)
 
-    epochs = 40
+    epochs = 100
     for epoch in tqdm(range(epochs)):
         # for step, batch in tqdm(enumerate(dataloader)):
         for step, image_batch in enumerate(tqdm(dataloader)):
@@ -782,12 +783,22 @@ def main():
                 all_images_tensor = (all_images_tensor + 1) * 0.5 # 이미지 값 범위를 [0, 1]로 조정
                 print("all_images_tensor shape: ", all_images_tensor.shape)
                 save_image(all_images_tensor, str(results_folder / f'sample-{epoch}-{milestone}.png'), nrow=4)
+        
+        
+        if epoch % 40 == 0:
+            save_model_wegights(model, 
+                                epoch, 
+                                "/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/saved_model",
+                                loss,
+                                optimizer=optimizer)
+        
+        if epoch == 99:
+            save_model_wegights(model, 
+                    epoch, 
+                    "/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/saved_model",
+                    loss,
+                    optimizer=optimizer)
 
-
-    # 모델 저장
-    saved_model_dir = Path(SAVED_MODEL_DIR)
-    saved_model_dir.mkdir(exist_ok = True)
-    save_model(model, SAVED_MODEL_DIR)
 
     # 샘플링 (inference)
     # 64개 이미지 샘플링
