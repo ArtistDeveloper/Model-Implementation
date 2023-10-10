@@ -712,16 +712,14 @@ def main():
     DDPM_DIR = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm"
     SAVED_MODEL_DIR = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/saved_model"
     DIFFUSION_RESULTS_PATH = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/results"
-    SAVE_AND_SAMPLE_EVERY = 7000
-    PNG_DATA_DIR =  r"/workspace/rsna_data"
+    SAVE_AND_SAMPLE_EVERY = 4000
     DUKE_DATA_DIR = r"/workspace/duke_data/png_out"
 
     img_size = 64
     channels = 1
-    dataloader_batch_size = 2
+    dataloader_batch_size = 4
 
     # 데이터로더 생성
-    # dataloader = get_rsna_dataloader(PNG_DATA_DIR, dataloader_batch_size, img_size=img_size)
     dataloader = get_duke_dataloader(DUKE_DATA_DIR, dataloader_batch_size, img_size)                         
 
     diffusion_model = Diffusion(total_timesteps=TIMESTEPS)
@@ -732,7 +730,7 @@ def main():
     results_folder.mkdir(exist_ok = True)
     
 
-    device = "cuda:2" if torch.cuda.is_available() else "cpu"
+    device = "cuda:4" if torch.cuda.is_available() else "cpu"
 
     model = Unet(
         dim=img_size,
@@ -741,7 +739,7 @@ def main():
     )
     
     if torch.cuda.device_count() > 1:
-        model = nn.DataParallel(model, device_ids=[2, 3]) 
+        model = nn.DataParallel(model, device_ids=[4, 5]) 
     model.to(device=device)
 
     optimizer = Adam(model.parameters(), lr=1e-3)
