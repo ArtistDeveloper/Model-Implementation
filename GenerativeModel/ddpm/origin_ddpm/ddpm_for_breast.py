@@ -520,7 +520,7 @@ class Diffusion(nn.Module):
     
     def q_sample(self, x_start:torch.Tensor, target_t:torch.Tensor, noise=None):
         """
-        forward process. 목표하는 타입스텝까지의 tensor들을 extract해서 텐서를 가져온다.
+        forward process이다. 목표하는 타입스텝까지의 tensor들을 extract해서 텐서를 가져온다.
         
         sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise의 이해
         식 4를 참조하면 평균에서 \sqrt{\hat{\alpha}} * x_0 (여기선 x_start)를 확인할 수 있으며
@@ -715,7 +715,7 @@ def main():
     SAVE_AND_SAMPLE_EVERY = 4000
     DUKE_DATA_DIR = r"/workspace/duke_data/png_out"
 
-    img_size = 64
+    img_size = 256
     channels = 1
     dataloader_batch_size = 4
 
