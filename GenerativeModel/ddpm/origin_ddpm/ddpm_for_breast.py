@@ -262,7 +262,7 @@ class Unet(nn.Module):
         dim, # image_size
         init_dim=None,
         out_dim=None,
-        dim_mults=(1, 2, 4, 8), # NOTE: 이해 필요! 이게 이미지 사이즈 조정에 영향을 줄 듯.
+        dim_mults=(1, 2, 4, 8),
         channels=3, # image_channel
         self_condition=False,
         resnet_block_groups=4,
@@ -275,17 +275,12 @@ class Unet(nn.Module):
         input_channels = channels * (2 if self_condition else 1) # 1 * 1 = input_channel = 1
 
         init_dim = default(init_dim, dim) # init_dim: dim
-        print("init_dim: ", init_dim)
 
         self.init_conv = nn.Conv2d(input_channels, init_dim, 1, padding=0)
 
         dims = [init_dim, *map(lambda m: dim * m, dim_mults)]
-        print("dims: ", dims)
-        print("len dims: ", len(dims))
 
         in_out = list(zip(dims[:-1], dims[1:])) # syntax testing에서 한 번 값 넣고 테스트 해보기, in_out이 뭐할 때 쓰는 변수지?
-        print("in_out type: ", type(in_out))
-        print("in_out: ", in_out)
 
         # block_klass는 인자 groups가 resnet_block_groups으로 설정된 ResnetBlock 함수? 클래스이다.
         block_klass = partial(ResnetBlock, groups=resnet_block_groups)
@@ -718,6 +713,7 @@ def main():
     img_size = 256
     channels = 1
     dataloader_batch_size = 4
+    loss_list = list()
 
     # 데이터로더 생성
     dataloader = get_duke_dataloader(DUKE_DATA_DIR, dataloader_batch_size, img_size)                         
@@ -733,7 +729,7 @@ def main():
     device = "cuda:4" if torch.cuda.is_available() else "cpu"
 
     model = Unet(
-        dim=img_size,
+        dim=img_size, # NOTE: 해당 값 64->256으로 변경해보았음.! 결과 확인 필요
         channels=channels,
         dim_mults=(1, 2, 4)
     )
