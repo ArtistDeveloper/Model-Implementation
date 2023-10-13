@@ -7,7 +7,6 @@ from inspect import isfunction
 from functools import partial
 from einops import rearrange, reduce
 from einops.layers.torch import Rearrange
-from datasets import load_dataset
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -392,15 +391,6 @@ class Unet(nn.Module):
         return self.final_conv(x)
 
 
-
-def apply_transforms(examples):
-   examples["pixel_values"] = [transform(image.convert("L")) for image in examples["image"]]
-   del examples["image"]
-
-   return examples
-
-
-
 # 포워드 디퓨전 프로세스 정의
 class ForwardBetaSchedule():
     @staticmethod
@@ -659,11 +649,6 @@ class Diffusion(nn.Module):
         print(type(noisy_image))
         plt.imshow(noisy_image)
         plt.savefig('./noisy.png')
-        
-
-def save_model(model, SAVED_MODEL_DIR):
-    torch.save(model, SAVED_MODEL_DIR + "/ddpm.pt")
-    torch.save(model.state_dict(), SAVED_MODEL_DIR + "/ddpm_state.pt")
 
 
 def get_rsna_dataloader(png_dir, train_batchsize=32, image_size=256):
@@ -796,24 +781,9 @@ def main():
 
     # 샘플링 (inference)
     # 64개 이미지 샘플링
-    samples = diffusion_model.sample(model, image_size=img_size, batch_size=64, channels=channels)
-
-    # 샘플링 결과 아무거나 한 개 확인
-    random_index = 5
-    plt.imshow(samples[-1][random_index].reshape(img_size, img_size, channels), cmap="gray")
-
-    random_index = 53
-
-    fig = plt.figure()
-    ims = []
-    for i in range(TIMESTEPS):
-        im = plt.imshow(samples[i][random_index].reshape(img_size, img_size, channels), cmap="gray", animated=True)
-        ims.append([im])
-
-    # animate = animation.ArtistAnimation(fig, ims, interval=50, blit=True, repeat_delay=1000)
-    # animate.save(DDPM_DIR + "/diffusion.gif")
-    # plt.savefig(DDPM_DIR + "/result.png")
+    # samples = diffusion_model.sample(model, image_size=img_size, batch_size=64, channels=channels)
 
 
 if __name__ == '__main__':
     main()
+    
