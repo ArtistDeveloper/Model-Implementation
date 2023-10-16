@@ -18,6 +18,7 @@ from tqdm.auto import tqdm
 
 import torch
 import torch.nn.functional as F
+import torch.optim as optim
 from torchvision.transforms import Compose, ToTensor, Lambda, ToPILImage, CenterCrop, Resize
 from torch import nn, einsum
 from torchvision import transforms
@@ -722,8 +723,13 @@ def main():
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model, device_ids=[4, 5]) 
     model.to(device=device)
-
+    
+    loss_list = list()
     optimizer = Adam(model.parameters(), lr=1e-3)
+    scheduler = optim.lr_scheduler.LambdaLR(optimizer=optimizer,
+                                            lr_lambda=lambda epoch: 0.95 ** epoch,
+                                            last_epoch=-1,
+                                            verbose=False)
 
     epochs = 100
     for epoch in tqdm(range(epochs)):
@@ -741,6 +747,7 @@ def main():
 
             if step % 100 == 0:
                 print("Loss:", loss.item())
+                loss_list.append(loss.item())
 
             loss.backward()
             optimizer.step()
@@ -763,19 +770,20 @@ def main():
                 print("all_images_tensor shape: ", all_images_tensor.shape)
                 save_image(all_images_tensor, str(results_folder / f'sample-{epoch}-{milestone}.png'), nrow=4)
         
+        scheduler.step()
         
         if epoch % 40 == 0:
             save_model_wegights(model, 
                                 epoch, 
                                 "/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/saved_model",
-                                loss,
+                                loss_list,
                                 optimizer=optimizer)
         
         if epoch == 99:
             save_model_wegights(model, 
                     epoch, 
                     "/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/saved_model",
-                    loss,
+                    loss_list,
                     optimizer=optimizer)
 
 
