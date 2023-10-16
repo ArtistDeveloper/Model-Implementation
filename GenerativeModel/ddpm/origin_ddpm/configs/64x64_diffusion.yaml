@@ -1,0 +1,13 @@
+path:
+  
+
+params:
+  task: train
+  objective: 64x64 image generation
+  img_size: 64
+  learning_rate: 0.001
+  TIMESTEPS: 700
+  channels: 1
+  batch_size: 4
+  num_threads: 8 # 4 * GPU num
+  epochs: 100

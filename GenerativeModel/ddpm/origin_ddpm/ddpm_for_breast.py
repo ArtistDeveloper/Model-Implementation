@@ -12,7 +12,6 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.image as img
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 
 from tqdm.auto import tqdm
 
@@ -29,7 +28,7 @@ from torchvision.utils import save_image
 from Model_Implementation.GenerativeModel.dataset_class.rsna_breast_cancer import RSNADataset
 from Model_Implementation.GenerativeModel.dataset_class.duke_dataset import DukeDataset
 
-from ml_util.utility import save_model_wegights, load_model
+import ml_util
 
 """Network helper""" 
 def exists(x):
@@ -685,21 +684,22 @@ def get_duke_dataloader(png_dir, train_batchsize=32, img_size=256):
     train_lodaer = DataLoader(dataset, batch_size=train_batchsize, shuffle=True)
     
     return train_lodaer
-    
 
 
 def main():
-    TIMESTEPS = 700
-    DDPM_DIR = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm"
-    SAVED_MODEL_DIR = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/saved_model"
+    yaml_path = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/configs/64x64_diffusion.yaml"
+    cfg = ml_util.load_config(yaml_path)
+    
+    TIMESTEPS = cfg['params']['TIMESTEPS']
+    MODEL_SAVE_PATH = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/saved_model"
     DIFFUSION_RESULTS_PATH = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/results"
     SAVE_AND_SAMPLE_EVERY = 4000
     DUKE_DATA_DIR = r"/workspace/duke_data/png_out"
+    SAVE_STEP = 40
 
-    img_size = 256
-    channels = 1
-    dataloader_batch_size = 4
-    loss_list = list()
+    img_size = cfg['params']['img_size']
+    channels = cfg['params']['channels']
+    dataloader_batch_size = cfg['params']['batch_size']
 
     # 데이터로더 생성
     dataloader = get_duke_dataloader(DUKE_DATA_DIR, dataloader_batch_size, img_size)                         
@@ -731,7 +731,7 @@ def main():
                                             last_epoch=-1,
                                             verbose=False)
 
-    epochs = 100
+    epochs = cfg['params']['epochs']
     for epoch in tqdm(range(epochs)):
         # for step, batch in tqdm(enumerate(dataloader)):
         for step, image_batch in enumerate(tqdm(dataloader)):
@@ -755,10 +755,8 @@ def main():
             # 생성된 이미지 저장
             # if True:
             if step != 0 and step % SAVE_AND_SAMPLE_EVERY == 0:
-                print("step: ", step)
                 milestone = step // SAVE_AND_SAMPLE_EVERY
                 batches = num_to_groups(4, batch_size) # 4, 8, batches = [4]
-                print("batches: ", batches)
 
                 # map: 리스트의 요소를 지정된 함수로 처리해준다. map(function, iterable)
                 # 첫 번째 배치의 이미지 리스트를 가져오고, 각 이미지를 텐서로 변환. 이미지는 batches * timestep의 개수만큼 반환되어 온다.
@@ -772,24 +770,19 @@ def main():
         
         scheduler.step()
         
-        if epoch % 40 == 0:
-            save_model_wegights(model, 
+        if epoch % SAVE_STEP == 0:
+            ml_util.save_model_wegights(model, 
                                 epoch, 
-                                "/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/saved_model",
+                                MODEL_SAVE_PATH,
                                 loss_list,
                                 optimizer=optimizer)
         
-        if epoch == 99:
-            save_model_wegights(model, 
+        if epoch == (epochs - 1):
+            ml_util.save_model_wegights(model, 
                     epoch, 
-                    "/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/saved_model",
+                    MODEL_SAVE_PATH,
                     loss_list,
                     optimizer=optimizer)
-
-
-    # 샘플링 (inference)
-    # 64개 이미지 샘플링
-    # samples = diffusion_model.sample(model, image_size=img_size, batch_size=64, channels=channels)
 
 
 if __name__ == '__main__':
