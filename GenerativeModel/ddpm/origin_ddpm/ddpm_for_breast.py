@@ -451,7 +451,7 @@ def extract(value, target_t, x_shape):
 
 
 # TODO: diffusion 클래스 안에 UNet모델 객체 삽입하기
-class Diffusion(nn.Module):
+class DiffusionUtils(nn.Module):
     t_timesteps = 300
 
     def __init__(
@@ -488,7 +488,7 @@ class Diffusion(nn.Module):
             즉 구하고자 하는 t와, 처음 시작지점 x_0를 조건으로 주면 x_{t-1}의 노이즈 상태를 얻을 수 있다.
         """
         # beta schedule 정의
-        Diffusion.t_timesteps = total_timesteps
+        DiffusionUtils.t_timesteps = total_timesteps
         self.betas = ForwardBetaSchedule.linear_beta_schedule(timesteps=total_timesteps)
 
         self.alphas = 1. - self.betas
@@ -591,14 +591,14 @@ class Diffusion(nn.Module):
         # 이미지는 순수한 노이즈에서 시작 (배치의 각 예제에 대해)
         batch_imgs = torch.randn(shape, device=device) # shape=(batch_size, channels, img_size, img_size) [4,1,28,28]
         total_imgs = []
-        for i in tqdm(reversed(range(0, Diffusion.t_timesteps)), desc='sampling loop time step', total=Diffusion.t_timesteps):
+        for i in tqdm(reversed(range(0, DiffusionUtils.t_timesteps)), desc='sampling loop time step', total=DiffusionUtils.t_timesteps):
             batch_imgs = self.p_sample(model, batch_imgs, torch.full((batch_size,), i, device=device, dtype=torch.long), i)
             total_imgs.append(batch_imgs.cpu().numpy())
 
         # timestep의 이미지만큼 sampling해서 이미지들을 반환한다. timestep이 300이면 300개의 이미지가 담긴 1차원 벡터 반환
         print("len total_imgs: ", len(total_imgs))
-        extracted_imgs = total_imgs[0 : Diffusion.t_timesteps : 100]
-        extracted_imgs.append(total_imgs[Diffusion.t_timesteps - 1])
+        extracted_imgs = total_imgs[0 : DiffusionUtils.t_timesteps : 100]
+        extracted_imgs.append(total_imgs[DiffusionUtils.t_timesteps - 1])
         
         return extracted_imgs
 
@@ -704,7 +704,7 @@ def main():
     # 데이터로더 생성
     dataloader = get_duke_dataloader(DUKE_DATA_DIR, dataloader_batch_size, img_size)                         
 
-    diffusion_model = Diffusion(total_timesteps=TIMESTEPS)
+    diffusion_model = DiffusionUtils(total_timesteps=TIMESTEPS)
     # diffusion_model.test_forward_process()
 
     # 모델 학습

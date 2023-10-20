@@ -4,11 +4,11 @@ from tqdm.auto import tqdm
 
 import ml_util
 from Model_Implementation.GenerativeModel.ddpm.origin_ddpm.ddpm_for_breast import (
-    Unet, Diffusion, ForwardBetaSchedule, SinusoidalPositionEmbeddings, ResnetBlock, Block,
+    Unet, DiffusionUtils, ForwardBetaSchedule, SinusoidalPositionEmbeddings, ResnetBlock, Block,
     WeightStandardizedConv2d, Residual, PreNorm, LinearAttention, Attention
     )
 
-def sample_image(model, difusion_frame, timestep, device, img_size, img_save_path):
+def sample_image(model, difusion_frame: DiffusionUtils, timestep, device, img_size, img_save_path):
     """
     마지막 timestep과 노이즈가 모두 디노이징 된 이미지를 저장합니다.
     """
@@ -33,7 +33,7 @@ if __name__ == '__main__':
     
     device = 'cuda:4'
     model = torch.load(model_path, map_location=device)
-    diffusion_frame = Diffusion(total_timesteps=TIMESTEP)
+    diffusion_utils = DiffusionUtils(total_timesteps=TIMESTEP)
     
-    sample_image(model, diffusion_frame, TIMESTEP, device, 64, img_save_path)
+    sample_image(model, diffusion_utils, TIMESTEP, device, 64, img_save_path)
     
