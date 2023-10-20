@@ -437,15 +437,15 @@ def test_load_image():
     return image
 
 
-def extract(alphas, target_t, x_shape):
+def extract(value, target_t, x_shape):
     """
-    처음부터 끝까지 구해놓은 alphas의 텐서와 목표하는 timestep인 텐서 target_t를 받아
+    처음부터 끝까지 구해놓은 value 텐서와 목표하는 timestep인 텐서 target_t를 받아
     target_t를 index로 씀으로 alphas에서 값을 하나 추출한다.
-    out = alphas.gather(-1, target_t.cpu())에서 
-    alphas의 shape가 300이면 300개 중 target(여기선 40)의 인덱스의 위치의 값을 가져온다.
+    out = value.gather(-1, target_t.cpu())에서 
+    value shape가 300이면 300개 중 target(여기선 40)의 인덱스의 위치의 값을 가져온다.
     """
     batch_size = target_t.shape[0]
-    out = alphas.gather(-1, target_t.cpu()) # dim=-1은 차원에서 마지막 차원을 뜻한다.(무조건 열일듯), index: take로 취할 단일 텐서
+    out = value.gather(-1, target_t.cpu()) # dim=-1은 차원에서 마지막 차원을 뜻한다.(무조건 열이 되도록 해놓은 것일듯), index: value 텐서에서 접근할 기준 인덱스들
 
     return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(target_t.device) # (?, ?, ?, ?)shpae으로 값 return 
 
@@ -557,9 +557,9 @@ class Diffusion(nn.Module):
     def p_sample(self, model, x_image, t, t_index):
         # t.shape = [64] (배치사이즈 크기)
 
-        betas_t = extract(self.betas, t, x_image.shape) # t까지의 betas 얻어오기 shape = [64, 1, 1, 1]
-        sqrt_one_minus_alphas_cumprod_t = extract(self.sqrt_one_minus_alphas_cumprod, t, x_image.shape) # shape = [64, 1, 1, 1]
-        sqrt_recip_alphas_t = extract(self.sqrt_recip_alphas, t, x_image.shape) # shape = [64, 1, 1, 1]
+        betas_t = extract(self.betas, t, x_image.shape) # t까지의 betas 얻어오기 shape = [batchsize, 1, 1, 1]
+        sqrt_one_minus_alphas_cumprod_t = extract(self.sqrt_one_minus_alphas_cumprod, t, x_image.shape) # shape = [batchsize, 1, 1, 1]
+        sqrt_recip_alphas_t = extract(self.sqrt_recip_alphas, t, x_image.shape) # shape = [batchsize, 1, 1, 1]
         
         # 논문 Eq.11
         # 모델(노이즈 예측기)을 사용하여 평균을 예측한다.
@@ -695,7 +695,7 @@ def main():
     DIFFUSION_RESULTS_PATH = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/results"
     SAVE_AND_SAMPLE_EVERY = 4000
     DUKE_DATA_DIR = r"/workspace/duke_data/png_out"
-    SAVE_STEP = 40
+    SAVE_STEP = 20
 
     img_size = cfg['params']['img_size']
     channels = cfg['params']['channels']
@@ -771,14 +771,17 @@ def main():
         scheduler.step()
         
         if epoch % SAVE_STEP == 0:
-            ml_util.save_model_wegights(model, 
-                                epoch, 
-                                MODEL_SAVE_PATH,
-                                loss_list,
-                                optimizer=optimizer)
+            torch.save(model, f"{MODEL_SAVE_PATH}/{epoch}_full_model.pth")
+            torch.save(model.state_dict(), f"{MODEL_SAVE_PATH}/{epoch}_model_weights.pth")
+            
+            # ml_util.save_model_weights(model, 
+            #                     epoch, 
+            #                     MODEL_SAVE_PATH,
+            #                     loss_list,
+            #                     optimizer=optimizer)
         
         if epoch == (epochs - 1):
-            ml_util.save_model_wegights(model, 
+            ml_util.save_model_weights(model, 
                     epoch, 
                     MODEL_SAVE_PATH,
                     loss_list,
@@ -787,4 +790,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    
