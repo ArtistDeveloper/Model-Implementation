@@ -687,7 +687,7 @@ def get_duke_dataloader(png_dir, train_batchsize=32, img_size=256):
 
 
 def main():
-    yaml_path = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/configs/64x64_diffusion.yaml"
+    yaml_path = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/configs/256x256_diffusion.yaml"
     cfg = ml_util.load_config(yaml_path)
     
     TIMESTEPS = cfg['params']['TIMESTEPS']
@@ -700,6 +700,8 @@ def main():
     img_size = cfg['params']['img_size']
     channels = cfg['params']['channels']
     dataloader_batch_size = cfg['params']['batch_size']
+    learning_rate = cfg['params']['learning_rate']
+    print("Learning rate: ", learning_rate)
 
     # 데이터로더 생성
     dataloader = get_duke_dataloader(DUKE_DATA_DIR, dataloader_batch_size, img_size)                         
@@ -725,7 +727,9 @@ def main():
     model.to(device=device)
     
     loss_list = list()
-    optimizer = Adam(model.parameters(), lr=1e-3)
+    optimizer = Adam(model.parameters(), lr=learning_rate, weight_decay=0.9)
+    
+    # NOTE: LR Scheduler는 다른거 테스트 후에 적용(이미 적용해보았는데, 큰 변화 없음)
     scheduler = optim.lr_scheduler.LambdaLR(optimizer=optimizer,
                                             lr_lambda=lambda epoch: 0.95 ** epoch,
                                             last_epoch=-1,
@@ -738,7 +742,7 @@ def main():
             optimizer.zero_grad()        
 
             batch_size = image_batch.shape[0]
-            image_batch = image_batch.to(device) 
+            image_batch = image_batch.to(device)
 
             # 알고리즘 1, 3번째 줄: 배치의 모든 예제에 대해 균일하게 t를 샘플링한다.
             t = torch.randint(0, TIMESTEPS, (batch_size,), device=device).long()            
@@ -768,11 +772,10 @@ def main():
                 print("all_images_tensor shape: ", all_images_tensor.shape)
                 save_image(all_images_tensor, str(results_folder / f'sample-{epoch}-{milestone}.png'), nrow=4)
         
-        scheduler.step()
+        # scheduler.step()
         
         if epoch % SAVE_STEP == 0:
-            torch.save(model, f"{MODEL_SAVE_PATH}/{epoch}_full_model.pth")
-            torch.save(model.state_dict(), f"{MODEL_SAVE_PATH}/{epoch}_model_weights.pth")
+            torch.save(model, f"{MODEL_SAVE_PATH}/{epoch}_full_model.pth") 
             
             # ml_util.save_model_weights(model, 
             #                     epoch, 

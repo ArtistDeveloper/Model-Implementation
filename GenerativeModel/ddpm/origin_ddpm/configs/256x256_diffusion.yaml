@@ -1,0 +1,14 @@
+path:
+  
+
+params:
+  task: train
+  objective: 256x256 image generation
+  img_size: 256
+  learning_rate: 0.001
+  TIMESTEPS: 700
+  channels: 1
+  batch_size: 4
+  num_threads: 8 # 4 * GPU num
+  epochs: 100
+  weight_decay: 0.9
