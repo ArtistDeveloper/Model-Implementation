@@ -18,8 +18,10 @@ from tqdm.auto import tqdm
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
+import torch.nn.utils as torch_utils
 from torchvision.transforms import Compose, ToTensor, Lambda, ToPILImage, CenterCrop, Resize
 from torch import nn, einsum
+from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from torch.optim import Adam
@@ -689,6 +691,8 @@ def get_duke_dataloader(png_dir, train_batchsize=32, img_size=256):
 def main():
     yaml_path = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/configs/256x256_diffusion.yaml"
     cfg = ml_util.load_config(yaml_path)
+    writer = SummaryWriter()
+    global_step = 0
     
     TIMESTEPS = cfg['params']['TIMESTEPS']
     MODEL_SAVE_PATH = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/saved_model"
@@ -727,7 +731,9 @@ def main():
     model.to(device=device)
     
     loss_list = list()
-    optimizer = Adam(model.parameters(), lr=learning_rate, weight_decay=0.9)
+    # optimizer = Adam(model.parameters(), lr=learning_rate, weight_decay=0.9)
+    optimizer = Adam(model.parameters(), lr=learning_rate)
+    max_grad_norm = 0.8
     
     # NOTE: LR Scheduler는 다른거 테스트 후에 적용(이미 적용해보았는데, 큰 변화 없음)
     scheduler = optim.lr_scheduler.LambdaLR(optimizer=optimizer,
@@ -737,7 +743,6 @@ def main():
 
     epochs = cfg['params']['epochs']
     for epoch in tqdm(range(epochs)):
-        # for step, batch in tqdm(enumerate(dataloader)):
         for step, image_batch in enumerate(tqdm(dataloader)):
             optimizer.zero_grad()        
 
@@ -748,12 +753,15 @@ def main():
             t = torch.randint(0, TIMESTEPS, (batch_size,), device=device).long()            
 
             loss = diffusion_model.p_losses(model, image_batch, t, noise=None, loss_type="huber")
+            writer.add_scalar('Loss/train', loss.item(), global_step)
+            global_step += 1
 
             if step % 100 == 0:
                 print("Loss:", loss.item())
                 loss_list.append(loss.item())
 
             loss.backward()
+            torch_utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
 
             # 생성된 이미지 저장
@@ -761,7 +769,7 @@ def main():
             if step != 0 and step % SAVE_AND_SAMPLE_EVERY == 0:
                 milestone = step // SAVE_AND_SAMPLE_EVERY
                 batches = num_to_groups(4, batch_size) # 4, 8, batches = [4]
-
+    
                 # map: 리스트의 요소를 지정된 함수로 처리해준다. map(function, iterable)
                 # 첫 번째 배치의 이미지 리스트를 가져오고, 각 이미지를 텐서로 변환. 이미지는 batches * timestep의 개수만큼 반환되어 온다.
                 # 여기서 batches는 4이고, TIMESTEPS은 10이라면 총 40개의 이미지를 가져오게 된다.

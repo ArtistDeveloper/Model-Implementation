@@ -9,6 +9,6 @@ params:
   TIMESTEPS: 700
   channels: 1
   batch_size: 4
-  num_threads: 8 # 4 * GPU num
+  # num_threads: 8 # 4 * GPU num
   epochs: 100
-  weight_decay: 0.9
+  # weight_decay: 0.9
