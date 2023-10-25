@@ -791,11 +791,7 @@ def main():
             #                     optimizer=optimizer)
         
         if epoch == (epochs - 1):
-            ml_util.save_model_weights(model, 
-                    epoch, 
-                    MODEL_SAVE_PATH,
-                    loss_list,
-                    optimizer=optimizer)
+            torch.save(model, f"{MODEL_SAVE_PATH}/{epoch}_full_model.pth") 
 
 
 if __name__ == '__main__':
