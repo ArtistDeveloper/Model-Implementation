@@ -6,9 +6,9 @@ params:
   objective: 256x256 image generation
   img_size: 256
   learning_rate: 0.001
-  TIMESTEPS: 700
+  TIMESTEPS: 1000
   channels: 1
-  batch_size: 6
+  batch_size: 8
   gpu_num: 3
   base_num_workers: 4
   epochs: 100

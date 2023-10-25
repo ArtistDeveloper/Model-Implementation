@@ -697,7 +697,7 @@ def main():
     TIMESTEPS = cfg['params']['TIMESTEPS']
     MODEL_SAVE_PATH = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/saved_model"
     DIFFUSION_RESULTS_PATH = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/results"
-    SAVE_AND_SAMPLE_EVERY = 2600
+    SAVE_AND_SAMPLE_EVERY = 2000
     DUKE_DATA_DIR = r"/workspace/duke_data/png_out"
     SAVE_STEP = 20
 
@@ -718,7 +718,7 @@ def main():
     results_folder.mkdir(exist_ok = True)
     
 
-    device = "cuda:3" if torch.cuda.is_available() else "cpu"
+    device = "cuda:2" if torch.cuda.is_available() else "cpu"
 
     model = Unet(
         dim=img_size, # NOTE: 해당 값 64->256으로 변경해보았음.! 결과 확인 필요
@@ -727,7 +727,7 @@ def main():
     )
     
     if torch.cuda.device_count() > 1:
-        model = nn.DataParallel(model, device_ids=[3, 4, 5]) 
+        model = nn.DataParallel(model, device_ids=[2, 3, 4, 5]) 
     model.to(device=device)
     
     loss_list = list()
@@ -764,8 +764,7 @@ def main():
             torch_utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
 
-            # 생성된 이미지 저장
-            # if True:
+
             if step != 0 and step % SAVE_AND_SAMPLE_EVERY == 0:
                 milestone = step // SAVE_AND_SAMPLE_EVERY
                 batches = num_to_groups(4, batch_size) # 4, 8, batches = [4]
