@@ -8,7 +8,8 @@ params:
   learning_rate: 0.001
   TIMESTEPS: 700
   channels: 1
-  batch_size: 4
-  # num_threads: 8 # 4 * GPU num
+  batch_size: 6
+  gpu_num: 3
+  base_num_workers: 4
   epochs: 100
   # weight_decay: 0.9

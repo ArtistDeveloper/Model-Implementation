@@ -671,7 +671,7 @@ def get_rsna_dataloader(png_dir, train_batchsize=32, image_size=256):
     return train_loader
 
 
-def get_duke_dataloader(png_dir, train_batchsize=32, img_size=256):
+def get_duke_dataloader(png_dir, train_batchsize=32, img_size=256, num_workers=8):
     img_transform = transforms.Compose(
         [
             transforms.Resize(size=(img_size, img_size)),
@@ -683,7 +683,7 @@ def get_duke_dataloader(png_dir, train_batchsize=32, img_size=256):
     dataset = DukeDataset(png_dir, img_transform)
     print(len(dataset))
     
-    train_lodaer = DataLoader(dataset, batch_size=train_batchsize, shuffle=True)
+    train_lodaer = DataLoader(dataset, batch_size=train_batchsize, shuffle=True, num_workers=num_workers)
     
     return train_lodaer
 
@@ -697,7 +697,7 @@ def main():
     TIMESTEPS = cfg['params']['TIMESTEPS']
     MODEL_SAVE_PATH = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/saved_model"
     DIFFUSION_RESULTS_PATH = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/results"
-    SAVE_AND_SAMPLE_EVERY = 4000
+    SAVE_AND_SAMPLE_EVERY = 2600
     DUKE_DATA_DIR = r"/workspace/duke_data/png_out"
     SAVE_STEP = 20
 
@@ -708,7 +708,7 @@ def main():
     print("Learning rate: ", learning_rate)
 
     # 데이터로더 생성
-    dataloader = get_duke_dataloader(DUKE_DATA_DIR, dataloader_batch_size, img_size)                         
+    dataloader = get_duke_dataloader(DUKE_DATA_DIR, dataloader_batch_size, img_size, cfg['params']['gpu_num'] * cfg['params']['base_num_workers'])                         
 
     diffusion_model = DiffusionUtils(total_timesteps=TIMESTEPS)
     # diffusion_model.test_forward_process()
@@ -718,7 +718,7 @@ def main():
     results_folder.mkdir(exist_ok = True)
     
 
-    device = "cuda:4" if torch.cuda.is_available() else "cpu"
+    device = "cuda:3" if torch.cuda.is_available() else "cpu"
 
     model = Unet(
         dim=img_size, # NOTE: 해당 값 64->256으로 변경해보았음.! 결과 확인 필요
@@ -727,7 +727,7 @@ def main():
     )
     
     if torch.cuda.device_count() > 1:
-        model = nn.DataParallel(model, device_ids=[4, 5]) 
+        model = nn.DataParallel(model, device_ids=[3, 4, 5]) 
     model.to(device=device)
     
     loss_list = list()
