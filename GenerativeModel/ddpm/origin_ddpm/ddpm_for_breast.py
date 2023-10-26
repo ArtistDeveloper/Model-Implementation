@@ -32,12 +32,16 @@ from Model_Implementation.GenerativeModel.dataset_class.duke_dataset import Duke
 
 import ml_util
 
-"""Network helper""" 
+
 def exists(x):
     return x is not None
 
 
 def default(val, d):
+    """
+    기본 값이 존재한다면 val을 return하고, 기본값 자체가 계산이 필요한 경우
+    함수를 통해 계산된 결과를 제공할 수 있다.
+    """
     if exists(val):
         return val
     return d() if isfunction(d) else d
@@ -95,7 +99,6 @@ class SinusoidalPositionEmbeddings(nn.Module):
 
 
 
-"""ResNet block"""
 class WeightStandardizedConv2d(nn.Conv2d):
     """
     https://arxiv.org/abs/1903.10520
@@ -146,8 +149,8 @@ class ResnetBlock(nn.Module):
     def __init__(self, dim, dim_out, *, time_emb_dim=None, groups=8):
         super().__init__()
         self.mlp = (
-            nn.Sequential(nn.SiLU(), nn.Linear(time_emb_dim, dim_out * 2))
-            if exists(time_emb_dim)
+            nn.Sequential(nn.SiLU(), nn.Linear(time_emb_dim, dim_out * 2)) \
+            if exists(time_emb_dim) \
             else None
         )
 
@@ -276,18 +279,17 @@ class Unet(nn.Module):
         input_channels = channels * (2 if self_condition else 1) # 1 * 1 = input_channel = 1
 
         init_dim = default(init_dim, dim) # init_dim: dim
-
         self.init_conv = nn.Conv2d(input_channels, init_dim, 1, padding=0)
 
         dims = [init_dim, *map(lambda m: dim * m, dim_mults)]
+        in_out = list(zip(dims[:-1], dims[1:]))
 
-        in_out = list(zip(dims[:-1], dims[1:])) # syntax testing에서 한 번 값 넣고 테스트 해보기, in_out이 뭐할 때 쓰는 변수지?
-
-        # block_klass는 인자 groups가 resnet_block_groups으로 설정된 ResnetBlock 함수? 클래스이다.
+        # block_klass는 인자 groups가 resnet_block_groups으로 설정된 ResnetBlock 함수이다.
         block_klass = partial(ResnetBlock, groups=resnet_block_groups)
         print("block_klass type: ", type(block_klass))
 
         # time embeddings
+        # FiLM과 같은 컨디셔닝을 사용한다. 좀 더 강한 형태의 컨디셔닝이며, 텍스트 모델에서 이미지 모델로 채택된 것이다.
         time_dim = dim * 4
         print("time_dim: ", time_dim)
 
@@ -319,7 +321,6 @@ class Unet(nn.Module):
                 )
             )
 
-        print("self.downs len: ", len(self.downs))
         print("self.downs: ", self.downs)
 
 
@@ -718,7 +719,7 @@ def main():
     results_folder.mkdir(exist_ok = True)
     
 
-    device = "cuda:2" if torch.cuda.is_available() else "cpu"
+    device = "cuda:4" if torch.cuda.is_available() else "cpu"
 
     model = Unet(
         dim=img_size, # NOTE: 해당 값 64->256으로 변경해보았음.! 결과 확인 필요
@@ -727,7 +728,7 @@ def main():
     )
     
     if torch.cuda.device_count() > 1:
-        model = nn.DataParallel(model, device_ids=[2, 3, 4, 5]) 
+        model = nn.DataParallel(model, device_ids=[4, 5]) 
     model.to(device=device)
     
     loss_list = list()
