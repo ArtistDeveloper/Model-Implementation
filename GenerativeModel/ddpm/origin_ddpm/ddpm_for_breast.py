@@ -156,13 +156,13 @@ class ResnetBlock(nn.Module):
 
         self.block1 = Block(dim, dim_out, groups=groups)
         self.block2 = Block(dim_out, dim_out, groups=groups)
-        self.res_conv = nn.Conv2d(dim, dim_out, 1) if dim != dim_out else nn.Identity()
+        self.res_conv = nn.Conv2d(dim, dim_out, 1) if dim != dim_out else nn.Identity() # 채널크기가 같으면 그대로, 아니면 conv2d로 채널 수 맞춰주기
 
     def forward(self, x, time_emb=None):
         scale_shift = None
         if exists(self.mlp) and exists(time_emb):
             time_emb = self.mlp(time_emb)
-            time_emb = rearrange(time_emb, "b c -> b c 1 1")
+            time_emb = rearrange(time_emb, "b c -> b c 1 1") # Conv2D 수행하는 곳에 채널수와 크기를 맞춰주기 위함.
             scale_shift = time_emb.chunk(2, dim=1)
 
         h = self.block1(x, scale_shift=scale_shift)
