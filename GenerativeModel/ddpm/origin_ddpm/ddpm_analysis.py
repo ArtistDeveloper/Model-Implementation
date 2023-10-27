@@ -43,19 +43,46 @@ def default(val, d):
     return d() if isfunction(d) else d
 
 
+class SinusoidalPositionEmbeddings(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+    
+    def forward(self, time):
+        device = time.device
+        half_dim = self.dim // 2
+        embeddings = math.log(10000) / (half_dim - 1)
+        embeddings = torch.exp(torch.arange(half_dim, device=device) * -embeddings)
+        embeddings = time[:, None] * embeddings[None, :]
+        embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)
+        return embeddings
+
+
 class WeightStandardizedConv2d(nn.Conv2d):
     def forward(self, x):
         eps = 1e-5 if x.dtype == torch.float32 else 1e-3
         
+        # 합성곱 연산을 수행하기 전에 필터 가중치를 정규화해야한다.
         weight = self.weight
         mean = reduce(weight, "o ... -> o 1 1 1", "mean")
-
+        var = reduce(weight, "o ... -> o 1 1 1", partial(torch.var, unbiased=False))
+        normalized_weight = (weight - mean) * (var + eps).rsqrt() # 2 z = x−μ / σ + 0.0001(수치안정)
+        
+        return F.conv2d(
+            x,
+            normalized_weight,
+            self.bias,
+            self.stride,
+            self.padding,
+            self.dilation,
+            self.groups,
+        )
 
 
 class Block(nn.Module):
     def __init__(self, dim, dim_out, groups=8):
         super().__init__()
-        self.proj = NotImplementedError
+        self.proj = WeightStandardizedConv2d(dim, dim_out, 3, padding=1)
         self.norm = nn.GroupNorm(groups, dim_out)
         self.act = nn.SiLU()
 
@@ -87,6 +114,8 @@ class ResnetBlock(nn.Module):
         
     def forward(self, x, time_emb=None):
         scale_shift = None
+        
+        # TODO: Scale Shift에 대한 제대로 된 이해 필요
         if exists(self.mlp) and exists(time_emb):
             time_emb = self.mlp(time_emb)
             time_emb = rearrange(time_emb, "b c -> b c 1 1") # Conv2D 수행하는 곳에 채널수와 크기를 맞춰주기 위함.
@@ -95,10 +124,7 @@ class ResnetBlock(nn.Module):
         h = self.block1(x, scale_shift=scale_shift)
         h = self.block2(h)
         return h + self.res_conv(x)
-        
-        
-        
-        
+            
 
 
 class Unet(nn.Module):
@@ -131,9 +157,12 @@ class Unet(nn.Module):
         # block_klass = partial(ResnetBlock, groups=resnet_block_groups)
         # print("block_klass type: ", type(block_klass))
         
-        # TODD: time_mlp 이해 및 구현 필요
+        # TODO: time_mlp 이해 및 구현 필요
         self.time_mlp = nn.Sequential(
-            
+            # SinusoidalPositionEmbeddings(dim),
+            # nn.Linear(dim, time_dim),
+            # nn.GELU(),
+            # nn.Linear(time_dim, time_dim),
         )
         
     
@@ -141,22 +170,20 @@ class Unet(nn.Module):
         # if self.self_condition:
         #     x_self_cond = default(x_self_cond, lambda: torch.zeros_like(x))
         #     x = torch.cat((x_self_cond, x), dim=1)
-
+        
         x = self.init_conv(x)
         r = x.clone()
-
         t = self.time_mlp(time)
-
-        h = []
-
+        h = list()
+        
         for block1, block2, attn, downsample in self.downs:
             x = block1(x, t)
             h.append(x)
-
+            
             x = block2(x, t)
             x = attn(x)
             h.append(x)
-
+            
             x = downsample(x)
         
         # TODO: mid_block 작성
@@ -167,7 +194,8 @@ class Unet(nn.Module):
 
 
 def main():
-    raise NotImplementedError
+    unet = Unet()
+    
 
 
 if __name__ == '__main__':
