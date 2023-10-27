@@ -82,8 +82,9 @@ def Downsample(dim, dim_out=None):
 
 
 
-"""Positional embedding"""
 class SinusoidalPositionEmbeddings(nn.Module):
+    """Positional embedding"""
+    
     def __init__(self, dim):
         super().__init__()
         self.dim = dim
@@ -91,8 +92,8 @@ class SinusoidalPositionEmbeddings(nn.Module):
     def forward(self, time):
         device = time.device
         half_dim = self.dim // 2
-        embeddings = math.log(10000) / (half_dim - 1)
-        embeddings = torch.exp(torch.arange(half_dim, device=device) * -embeddings)
+        embeddings = math.log(10000) / (half_dim - 1) # math.log(10000): 9.2
+        embeddings = torch.exp(torch.arange(half_dim, device=device) * -embeddings) # 1.0 ~ 0.0 사이의 값
         embeddings = time[:, None] * embeddings[None, :]
         embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)
         return embeddings
@@ -107,12 +108,13 @@ class WeightStandardizedConv2d(nn.Conv2d):
 
     def forward(self, x):
         eps = 1e-5 if x.dtype == torch.float32 else 1e-3
-
+        
+        # 합성곱 연산을 수행하기 전에 필터 가중치를 정규화해야한다.
         weight = self.weight
         mean = reduce(weight, "o ... -> o 1 1 1", "mean")
         var = reduce(weight, "o ... -> o 1 1 1", partial(torch.var, unbiased=False))
-        normalized_weight = (weight - mean) * (var + eps).rsqrt()
-
+        normalized_weight = (weight - mean) * (var + eps).rsqrt() #  z = x−μ / σ + 0.0001(수치안정)
+        
         return F.conv2d(
             x,
             normalized_weight,
@@ -267,7 +269,7 @@ class Unet(nn.Module):
         init_dim=None,
         out_dim=None,
         dim_mults=(1, 2, 4, 8),
-        channels=3, # image_channel
+        channels=1, # image_channel
         self_condition=False,
         resnet_block_groups=4,
     ):
@@ -321,7 +323,8 @@ class Unet(nn.Module):
                 )
             )
 
-        print("self.downs: ", self.downs)
+        # print("self.downs: ", self.downs)
+        print("self.downs len: ", len(self.downs))
 
 
 
@@ -350,9 +353,14 @@ class Unet(nn.Module):
 
         self.final_res_block = block_klass(dim * 2, dim, time_emb_dim=time_dim)
         self.final_conv = nn.Conv2d(dim, self.out_dim, 1)
-
-
+        
+    
     def forward(self, x, time, x_self_cond=None):
+        """
+        x: random noise image
+        time: 0~Timestep 사이의 랜덤 int값    
+        """
+        
         if self.self_condition:
             x_self_cond = default(x_self_cond, lambda: torch.zeros_like(x))
             x = torch.cat((x_self_cond, x), dim=1)
@@ -528,6 +536,10 @@ class DiffusionUtils(nn.Module):
     
     
     def p_losses(self, denoise_model, x_start, t, noise=None, loss_type="l1"):
+        """
+        x_noisy: 알고리즘 1-5에서 epsilon theta의 첫 번째 매개변수로 들어갈 값
+        """
+        
         if noise is None:
             noise = torch.randn_like(x_start)
 
