@@ -194,8 +194,17 @@ class Unet(nn.Module):
 
 
 def main():
-    unet = Unet()
+    img_size = 256
+    channels = 1
+    dim_mults = (1, 2, 4)
     
+    unet = Unet(
+        dim=img_size,
+        channels=channels,
+        dim_mults=dim_mults
+    )
+    
+    print(unet)
 
 
 if __name__ == '__main__':
