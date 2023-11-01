@@ -85,6 +85,47 @@ def visualize_latent_variable(autoencoder, trainset, device):
     plt.savefig(f'/workspace/Model_Implementation/GenerativeModel/AutoEncoder/autoencoder_results/latent_variable.png')
 
 
+def draw_decoder_output(origin_data, autoenocder, epoch, device):
+    view_img_size = 28
+    
+    test_x = origin_data.to(device)
+    _, decoded_data = autoenocder(test_x)
+    
+    fig, ax = plt.subplot(2, 5, figsize=(5,2))
+    print("[Epoch {}]".format(epoch))
+    
+    # 원본 데이터 출력
+    for i in range(5):
+        img = np.reshape(origin_data.data.numpy()[i], (28, 28)) # 파이토치 텐서를 넘파이로 변환
+        ax[0][i].imshow(img, cmap='gray')
+        ax[0][i].set_xticks(()); ax[0][i].set_yticks(())
+        
+    for i in range(5):
+        img = np.reshape(decoded_data.data.cpu().numpy()[i], (28, 28))
+        ax[1][i].imshow(img, cmap='gray')
+        ax[1][i].set_xticks(()); ax[0][i].set_yticks(())
+    
+    plt.savefig(f'/workspace/Model_Implementation/GenerativeModel/AutoEncoder/autoencoder_results/{epoch}_img.png')
+    
+
+def train(epoch, autoencoder, train_loader, device, optimizer, criterion, origin_data):
+    autoencoder.train()
+    
+    for epoch in range(0, epoch):
+        for step, (x, label) in enumerate(train_loader):
+            x = x.view(-1, 28*28).to(device)
+            y = x.view(-1, 28*28).to(device) # x(입력)와 y(대상 레이블) 모두 원본이미지 x이다.
+            label = label.to(device)
+            
+            encoded, decoded = autoencoder(x)
+            
+            loss = criterion(decoded, y)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            
+            draw_decoder_output(origin_data, autoencoder, epoch, device)
+
 
 def main():
     epoch = 10
@@ -100,53 +141,17 @@ def main():
         transform=transforms.ToTensor()
     )
     
-    train_loader = DataLoader(dataset=trainset, batch_size=4, shuffle=True)
+    train_loader = DataLoader(dataset=trainset, batch_size=batch_size, shuffle=True)
     
     autoencoder = AutoEncoder().to(device)
     optimizer = torch.optim.Adam(autoencoder.parameters(), lr=0.005)
     criterion = nn.MSELoss() # 원본값과 디코더에서 나온 값의 차이를 계산하기 위해 MSE 오차함수를 사용한다.
     
-    view_data = trainset.data[:5].view(-1, 28*28)
-    view_data = view_data.type(torch.FloatTensor) / 255.
+    origin_data = trainset.data[:5].view(-1, 28*28)
+    origin_data = origin_data.type(torch.FloatTensor) / 255.
     
-    autoencoder.train()
+    train(epoch, autoencoder, train_loader, device, optimizer, criterion, origin_data)
     
-    for epoch in range(0, epoch):
-        for step, (x, label) in enumerate(train_loader):
-            x = x.view(-1, 28*28).to(device)
-            y = x.view(-1, 28*28).to(device) # x(입력)와 y(대상 레이블) 모두 원본이미지 x이다.
-            label = label.to(device)
-            
-            encoded, decoded = autoencoder(x)
-            
-            loss = criterion(decoded, y)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-        
-        # 디코더에서 나온 이미지를 시각화 하기
-        # 앞서 시각화를 위해 남겨둔 5개의 이미지를 한 epoch만큼 학습을 마친 모델에 넣어 복원이미지를 만든다.
-        test_x = view_data.to(device)
-        _, decoded_data = autoencoder(test_x)
-        
-        f, a = plt.subplots(2, 5, figsize=(5, 2))
-        print("[Epoch {}]".format(epoch))
-        
-        # 원본 데이터 출력
-        for i in range(5):
-            img = np.reshape(view_data.data.numpy()[i], (28, 28)) # 파이토치 텐서를 넘파이로 변환
-            a[0][i].imshow(img, cmap='gray')
-            a[0][i].set_xticks(()); a[0][i].set_yticks(())
-            
-        for i in range(5):
-            img = np.reshape(decoded_data.data.cpu().numpy()[i], (28, 28))
-            a[1][i].imshow(img, cmap='gray')
-            a[1][i].set_xticks(()); a[0][i].set_yticks(())
-        
-        plt.savefig(f'/workspace/Model_Implementation/GenerativeModel/AutoEncoder/autoencoder_results/{epoch}_img.png')
-   
-    visualize_latent_variable(autoencoder, trainset, device)
-        
         
 if __name__ == '__main__':
     main()
