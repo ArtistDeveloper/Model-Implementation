@@ -33,6 +33,20 @@ from Model_Implementation.GenerativeModel.dataset_class.duke_dataset import Duke
 import ml_util
 
 
+class GlobalVar:
+    # Select cuda device
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    device_ids = [0, 1]
+    
+    # Tensorboard
+    writer = SummaryWriter()
+    global_step = 0
+    
+    # TODO: cfg 변수 여기로 옮겨, main(), train() 함수에서 사용할 수 있도록 변경 -> 메소드의 파라미터 줄일 수 있음.
+    # TODO: 
+    
+
+
 def exists(x):
     return x is not None
 
@@ -699,75 +713,55 @@ def get_duke_dataloader(png_dir, train_batchsize=32, img_size=256, num_workers=8
     train_lodaer = DataLoader(dataset, batch_size=train_batchsize, shuffle=True, num_workers=num_workers)
     
     return train_lodaer
-
-
-def main():
-    yaml_path = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/configs/256x256_diffusion.yaml"
-    cfg = ml_util.load_config(yaml_path)
-    writer = SummaryWriter()
-    global_step = 0
     
-    TIMESTEPS = cfg['params']['TIMESTEPS']
-    MODEL_SAVE_PATH = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/saved_model"
-    DIFFUSION_RESULTS_PATH = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/results"
-    SAVE_AND_SAMPLE_EVERY = 2000
-    DUKE_DATA_DIR = r"/workspace/duke_data/png_out"
-    SAVE_STEP = 20
-
-    img_size = cfg['params']['img_size']
-    channels = cfg['params']['channels']
-    dataloader_batch_size = cfg['params']['batch_size']
-    learning_rate = cfg['params']['learning_rate']
-    print("Learning rate: ", learning_rate)
-
-    # 데이터로더 생성
-    dataloader = get_duke_dataloader(DUKE_DATA_DIR, dataloader_batch_size, img_size, cfg['params']['gpu_num'] * cfg['params']['base_num_workers'])                         
-
-    diffusion_model = DiffusionUtils(total_timesteps=TIMESTEPS)
-    # diffusion_model.test_forward_process()
-
-    # 모델 학습
-    results_folder = Path(DIFFUSION_RESULTS_PATH)
-    results_folder.mkdir(exist_ok = True)
     
 
-    device = "cuda:4" if torch.cuda.is_available() else "cpu"
+def sample_image(model, diffusion_model, epoch, batch_size, img_size, channels, results_folder):
+    # milestone = step // save_and_sample_every
+    batches = num_to_groups(4, batch_size) # 4, 8, batches = [4]
 
-    model = Unet(
-        dim=img_size, # NOTE: 해당 값 64->256으로 변경해보았음.! 결과 확인 필요
-        channels=channels,
-        dim_mults=(1, 2, 4)
-    )
+    # map: 리스트의 요소를 지정된 함수로 처리해준다. map(function, iterable)
+    # 첫 번째 배치의 이미지 리스트를 가져오고, 각 이미지를 텐서로 변환. 이미지는 batches * timestep의 개수만큼 반환되어 온다.
+    # 여기서 batches는 4이고, TIMESTEPS은 10이라면 총 40개의 이미지를 가져오게 된다.
+    all_images_list = list(map(lambda n: diffusion_model.sample(model, img_size, batch_size=n, channels=channels, skip_step=100), batches))
+    image_tensors = [torch.tensor(image) for image in all_images_list[0]] 
+    all_images_tensor = torch.cat(image_tensors, dim=0) 
+    all_images_tensor = (all_images_tensor + 1) * 0.5 # 이미지 값 범위를 [0, 1]로 조정
+    print("all_images_tensor shape: ", all_images_tensor.shape)
+    save_path = os.path.join(results_folder, f'sample-{epoch}.png')    
+    save_image(all_images_tensor, save_path, nrow=4)
     
-    if torch.cuda.device_count() > 1:
-        model = nn.DataParallel(model, device_ids=[4, 5]) 
-    model.to(device=device)
-    
-    loss_list = list()
-    # optimizer = Adam(model.parameters(), lr=learning_rate, weight_decay=0.9)
-    optimizer = Adam(model.parameters(), lr=learning_rate)
-    max_grad_norm = 0.8
-    
-    # NOTE: LR Scheduler는 다른거 테스트 후에 적용(이미 적용해보았는데, 큰 변화 없음)
-    scheduler = optim.lr_scheduler.LambdaLR(optimizer=optimizer,
-                                            lr_lambda=lambda epoch: 0.95 ** epoch,
-                                            last_epoch=-1,
-                                            verbose=False)
 
-    epochs = cfg['params']['epochs']
+
+def train(cfg, optimizer, model, diffusion_model, dataloader, loss_list):
+    MODEL_SAVE_STEP = 20
+    
+    cfg_params = cfg['params']
+    cfg_paths = cfg['paths']
+    
+    img_size = cfg_params['img_size']
+    channels = cfg_params['channels']
+    timesteps = cfg_params['timesteps']
+    epochs = cfg_params['epochs']
+    max_grad_norm = cfg_params['max_grad_norm']
+    
+    model_save_path = cfg_paths['model_save_path']
+    diffusion_results_path = cfg_paths['diffusion_results_path']
+    
+    
     for epoch in tqdm(range(epochs)):
         for step, image_batch in enumerate(tqdm(dataloader)):
             optimizer.zero_grad()        
 
             batch_size = image_batch.shape[0]
-            image_batch = image_batch.to(device)
+            image_batch = image_batch.to(GlobalVar.device)
 
             # 알고리즘 1, 3번째 줄: 배치의 모든 예제에 대해 균일하게 t를 샘플링한다.
-            t = torch.randint(0, TIMESTEPS, (batch_size,), device=device).long()            
+            t = torch.randint(0, timesteps, (batch_size,), device=GlobalVar.device).long()            
 
             loss = diffusion_model.p_losses(model, image_batch, t, noise=None, loss_type="huber")
-            writer.add_scalar('Loss/train', loss.item(), global_step)
-            global_step += 1
+            GlobalVar.writer.add_scalar('Loss/train', loss.item(), GlobalVar.global_step)
+            GlobalVar.global_step += 1
 
             if step % 100 == 0:
                 print("Loss:", loss.item())
@@ -776,36 +770,97 @@ def main():
             loss.backward()
             torch_utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
+            
+            
+            if step != 0 and step % cfg_params['save_and_sample_every'] == 0:            
+                sample_image(
+                    model=model,
+                    diffusion_model=diffusion_model,
+                    epoch=epoch,
+                    batch_size=batch_size,
+                    img_size=img_size,
+                    channels=channels,
+                    results_folder=diffusion_results_path
+                )
 
-
-            if step != 0 and step % SAVE_AND_SAMPLE_EVERY == 0:
-                milestone = step // SAVE_AND_SAMPLE_EVERY
-                batches = num_to_groups(4, batch_size) # 4, 8, batches = [4]
-    
-                # map: 리스트의 요소를 지정된 함수로 처리해준다. map(function, iterable)
-                # 첫 번째 배치의 이미지 리스트를 가져오고, 각 이미지를 텐서로 변환. 이미지는 batches * timestep의 개수만큼 반환되어 온다.
-                # 여기서 batches는 4이고, TIMESTEPS은 10이라면 총 40개의 이미지를 가져오게 된다.
-                all_images_list = list(map(lambda n: diffusion_model.sample(model, img_size, batch_size=n, channels=channels, skip_step=100), batches))
-                image_tensors = [torch.tensor(image) for image in all_images_list[0]] 
-                all_images_tensor = torch.cat(image_tensors, dim=0) 
-                all_images_tensor = (all_images_tensor + 1) * 0.5 # 이미지 값 범위를 [0, 1]로 조정
-                print("all_images_tensor shape: ", all_images_tensor.shape)
-                save_image(all_images_tensor, str(results_folder / f'sample-{epoch}-{milestone}.png'), nrow=4)
         
         # scheduler.step()
         
-        if epoch % SAVE_STEP == 0:
-            torch.save(model, f"{MODEL_SAVE_PATH}/{epoch}_full_model.pth") 
-            
-            # ml_util.save_model_weights(model, 
-            #                     epoch, 
-            #                     MODEL_SAVE_PATH,
-            #                     loss_list,
-            #                     optimizer=optimizer)
+        if epoch % MODEL_SAVE_STEP == 0:
+            torch.save(model, f"{model_save_path}/{epoch}_full_model.pth") 
+
         
         if epoch == (epochs - 1):
-            torch.save(model, f"{MODEL_SAVE_PATH}/{epoch}_full_model.pth") 
+            torch.save(model, f"{model_save_path}/{epoch}_full_model.pth") 
+    
 
 
-if __name__ == '__main__':
+
+def main():
+    YAML_PATH = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/configs/128x128_diffusion.yaml"
+    
+    cfg = ml_util.load_config(YAML_PATH)
+    cfg_paths = cfg['paths']
+    
+    # 경로 불러오기
+    diffusion_results_path = cfg_paths['diffusion_results_path']
+    duke_data_dir = cfg_paths['duke_data_dir']
+    
+    
+    # 하이퍼파라미터 불러오기
+    cfg_params = cfg['params'] 
+    img_size = cfg_params['img_size']
+    channels = cfg_params['channels']
+    dataloader_batch_size = cfg_params['batch_size']
+    learning_rate = cfg_params['learning_rate']
+    timesteps = cfg_params['timesteps']
+
+    # 결과 이미지 폴더 생성
+    results_folder = Path(diffusion_results_path)
+    results_folder.mkdir(exist_ok = True)
+
+    # 데이터로더 생성
+    dataloader = get_duke_dataloader(duke_data_dir, 
+                                     dataloader_batch_size, 
+                                     img_size, 
+                                     cfg_params['gpu_num'] * cfg_params['base_num_workers']
+                                     )                         
+
+    # 모델 객체 생성
+    diffusion_model = DiffusionUtils(total_timesteps=timesteps)
+    model = Unet(
+        dim=img_size,
+        channels=channels,
+        dim_mults=(1, 2, 4)
+    )
+    if torch.cuda.device_count() > 1:
+        model = nn.DataParallel(model, device_ids=GlobalVar.device_ids) 
+    model.to(device=GlobalVar.device)
+    
+    # 옵티마이저 생성
+    optimizer = Adam(model.parameters(), lr=learning_rate)
+    # optimizer = Adam(model.parameters(), lr=learning_rate, weight_decay=0.9)
+    
+    # LR Scheduler 생성
+    # NOTE: LR Scheduler는 다른거 테스트 후에 적용(이미 적용해보았는데, 큰 변화 없음)
+    scheduler = optim.lr_scheduler.LambdaLR(optimizer=optimizer,
+                                            lr_lambda=lambda epoch: 0.95 ** epoch,
+                                            last_epoch=-1,
+                                            verbose=False)
+    
+    # 학습 상태 디버그 용도 코드
+    loss_list = list()
+    
+    train(
+        cfg, 
+        optimizer, 
+        model, 
+        diffusion_model, 
+        dataloader,
+        loss_list
+        )
+    
+
+
+if __name__ == '__main__':    
     main()
