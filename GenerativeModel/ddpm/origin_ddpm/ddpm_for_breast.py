@@ -43,7 +43,6 @@ class GlobalVar:
     global_step = 0
     
     # TODO: cfg 변수 여기로 옮겨, main(), train() 함수에서 사용할 수 있도록 변경 -> 메소드의 파라미터 줄일 수 있음.
-    # TODO: 
     
 
 
@@ -275,8 +274,8 @@ class Unet(nn.Module):
     2개의 ResNet 블록 + groupnorm + attention + residual connection + 업샘플링 연산으로 구성된다.
 
     마지막으로 ResNet 블록과 컨볼루션 레이어가 적용된다.
-
     """
+    
     def __init__(
         self,
         dim, # image_size
@@ -552,6 +551,7 @@ class DiffusionUtils(nn.Module):
     def p_losses(self, denoise_model, x_start, t, noise=None, loss_type="l1"):
         """
         x_noisy: 알고리즘 1-5에서 epsilon theta의 첫 번째 매개변수로 들어갈 값
+        t: uniform 하게 뽑은 랜덤한 int값 (배치사이즈만큼의 개수를 가진다.)
         """
         
         if noise is None:
@@ -713,7 +713,6 @@ def get_duke_dataloader(png_dir, train_batchsize=32, img_size=256, num_workers=8
     train_lodaer = DataLoader(dataset, batch_size=train_batchsize, shuffle=True, num_workers=num_workers)
     
     return train_lodaer
-    
     
 
 def sample_image(model, diffusion_model, epoch, batch_size, img_size, channels, results_folder):
