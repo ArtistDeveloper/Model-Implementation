@@ -105,7 +105,7 @@ class SinusoidalPositionEmbeddings(nn.Module):
     def forward(self, time):
         device = time.device
         half_dim = self.dim // 2
-        embeddings = math.log(10000) / (half_dim - 1) # math.log(10000): 9.2
+        embeddings = math.log(10000) / (half_dim - 1) # math.log(10000) = ln 9.2
         embeddings = torch.exp(torch.arange(half_dim, device=device) * -embeddings) # 1.0 ~ 0.0 사이의 값
         embeddings = time[:, None] * embeddings[None, :]
         embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)

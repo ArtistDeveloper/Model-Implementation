@@ -49,6 +49,8 @@ class SinusoidalPositionEmbeddings(nn.Module):
         self.dim = dim
     
     def forward(self, time):
+        print("time: ", time)
+        
         device = time.device
         half_dim = self.dim // 2
         embeddings = math.log(10000) / (half_dim - 1)
@@ -157,12 +159,12 @@ class Unet(nn.Module):
         # block_klass = partial(ResnetBlock, groups=resnet_block_groups)
         # print("block_klass type: ", type(block_klass))
         
-        # TODO: time_mlp 이해 및 구현 필요
+        # TODO: 1. time_mlp 이해 및 구현 필요
         self.time_mlp = nn.Sequential(
-            # SinusoidalPositionEmbeddings(dim),
-            # nn.Linear(dim, time_dim),
-            # nn.GELU(),
-            # nn.Linear(time_dim, time_dim),
+            SinusoidalPositionEmbeddings(dim),
+            nn.Linear(dim, time_dim),
+            nn.GELU(),
+            nn.Linear(time_dim, time_dim),
         )
         
     
@@ -208,4 +210,24 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    
+    class Test(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.sin = SinusoidalPositionEmbeddings(256)    
+            
+        def forward(self, time):
+            out = self.sin(time)
+            
+            return out
+    
+    t = torch.randint(0, 1000, (4,), device='cuda').long()
+    
+    test = Test()
+    result = test(t)
+    
+    print("result: ", result)
+    print("result shpae: ", result.shape)
+    
+    print(torch.arange(128))
