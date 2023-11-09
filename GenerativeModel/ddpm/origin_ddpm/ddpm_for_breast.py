@@ -1,31 +1,29 @@
 import os
 import math
-import numpy as np
-import requests
-from PIL import Image
+from pathlib import Path
 from inspect import isfunction
 from functools import partial
+
+import numpy as np
 from einops import rearrange, reduce
 from einops.layers.torch import Rearrange
-from pathlib import Path
-
 import matplotlib.pyplot as plt
-import matplotlib.image as img
-import matplotlib.pyplot as plt
-
 from tqdm.auto import tqdm
 
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
 import torch.nn.utils as torch_utils
-from torchvision.transforms import Compose, ToTensor, Lambda, ToPILImage, CenterCrop, Resize
 from torch import nn, einsum
-from torch.utils.tensorboard import SummaryWriter
+
+from torchvision.transforms import Compose, ToTensor, Lambda, ToPILImage, CenterCrop, Resize
 from torchvision import transforms
+from torchvision.utils import save_image
+
 from torch.utils.data import DataLoader
 from torch.optim import Adam
-from torchvision.utils import save_image
+from torch.utils.tensorboard import SummaryWriter
+
 
 from Model_Implementation.GenerativeModel.dataset_class.rsna_breast_cancer import RSNADataset
 from Model_Implementation.GenerativeModel.dataset_class.duke_dataset import DukeDataset
@@ -258,7 +256,7 @@ class PreNorm(nn.Module):
 
 class Unet(nn.Module):
     """
-    \epsilon(x_t, t) 네트워크의 역할은 노이즈 이미지와 각각의 노이즈 레벨을 batch로 받아서 입력에 추가된 노이즈를 output으로 출력한다:
+    epsilon(x_t, t) 네트워크의 역할은 노이즈 이미지와 각각의 노이즈 레벨을 batch로 받아서 입력에 추가된 노이즈를 output으로 출력한다:
     (batch_size, num_channels, height, width) 형태의 노이즈 이미지와 (batch_size, 1) 형태의 노이즈 레벨 배치를 입력으로 받아서,
     (batch_size, num_channels, height, width) 형태의 텐서를 반환한다.
 
@@ -451,16 +449,6 @@ class ForwardBetaSchedule():
         return torch.sigmoid(betas) * (beta_end - beta_start) + beta_start
 
 
-
-def test_load_image():
-    url = 'http://images.cocodataset.org/val2017/000000039769.jpg'
-    image = Image.open(requests.get(url, stream=True).raw) # PIL image of shape HWC
-    plt.imshow(image)
-    # plt.show()
-    plt.savefig("./origin_image.png")
-    return image
-
-
 def extract(value, target_t, x_shape):
     """
     처음부터 끝까지 구해놓은 value 텐서와 목표하는 timestep인 텐서 target_t를 받아
@@ -532,8 +520,8 @@ class DiffusionUtils(nn.Module):
         forward process이다. 목표하는 타입스텝까지의 tensor들을 extract해서 텐서를 가져온다.
         
         sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise의 이해
-        식 4를 참조하면 평균에서 \sqrt{\hat{\alpha}} * x_0 (여기선 x_start)를 확인할 수 있으며
-        표준편차에서 (1 - \hat{\alpha_t}) * I 를 볼 수 있다. 해당 수식과 상당히 유사. (I가 noise로 추정. )
+        식 4를 참조하면 평균에서 sqrt{hat{alpha}} * x_0 (여기선 x_start)를 확인할 수 있으며
+        표준편차에서 (1 - hat{alpha_t}) * I 를 볼 수 있다. 해당 수식과 상당히 유사. (I가 noise로 추정. )
         즉, 평균에서 표준편차만큼 계속 더해주면 노이즈라는건가?
 
         기존 노이즈 * 시작 이미지 + 추가 노이즈
@@ -654,9 +642,7 @@ class DiffusionUtils(nn.Module):
         return noisy_image
 
     
-    def test_forward_process(self):
-        image = test_load_image()
-        
+    def test_forward_process(self, image):
         image_size = 128
         transform = Compose([
             Resize(image_size),
