@@ -1,15 +1,21 @@
-path:
+paths:
+  model_save_path: "/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/saved_model"
+  diffusion_results_path: "/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/results"
+  duke_data_dir: "/workspace/duke_data/png_out"
   
 
 params:
   task: train
   objective: 256x256 image generation
   img_size: 256
-  learning_rate: 0.001
-  TIMESTEPS: 1000
+  learning_rate: 0.0001
+  timesteps: 1000
   channels: 1
   batch_size: 4
   gpu_num: 2
   base_num_workers: 4
   epochs: 100
+  save_and_sample_every: 4000
+  max_grad_norm: 0.8
+  
   # weight_decay: 0.9

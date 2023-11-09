@@ -796,7 +796,7 @@ def train(cfg, optimizer, model, diffusion_model, dataloader, loss_list):
 
 
 def main():
-    YAML_PATH = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/configs/128x128_diffusion.yaml"
+    YAML_PATH = r"/workspace/Model_Implementation/GenerativeModel/ddpm/origin_ddpm/configs/256x256_diffusion.yaml"
     
     cfg = ml_util.load_config(YAML_PATH)
     cfg_paths = cfg['paths']
