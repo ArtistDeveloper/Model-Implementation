@@ -320,6 +320,9 @@ class Unet(nn.Module):
 
         for idx, (dim_in, dim_out) in enumerate(in_out):
             is_last = idx >= (num_resolutions - 1)
+            
+            downsample_or_conv = Downsample(dim_in, dim_out) if not is_last \
+            else nn.Conv2d(dim_in, dim_out, 3, padding=1)
 
             self.downs.append(
                 nn.ModuleList(
@@ -327,9 +330,7 @@ class Unet(nn.Module):
                         block_klass(dim_in, dim_in, time_emb_dim=time_dim),
                         block_klass(dim_in, dim_in, time_emb_dim=time_dim),
                         Residual(PreNorm(dim_in, LinearAttention(dim_in))),
-                        Downsample(dim_in, dim_out)
-                        if not is_last
-                        else nn.Conv2d(dim_in, dim_out, 3, padding=1),
+                        downsample_or_conv,
                     ]
                 )
             )
