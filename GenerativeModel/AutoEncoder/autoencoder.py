@@ -91,7 +91,7 @@ def draw_decoder_output(origin_data, autoenocder, epoch, device):
     test_x = origin_data.to(device)
     _, decoded_data = autoenocder(test_x)
     
-    fig, ax = plt.subplot(2, 5, figsize=(5,2))
+    fig, ax = plt.subplots(2, 5, figsize=(5,2))
     print("[Epoch {}]".format(epoch))
     
     # 원본 데이터 출력
@@ -99,7 +99,8 @@ def draw_decoder_output(origin_data, autoenocder, epoch, device):
         img = np.reshape(origin_data.data.numpy()[i], (28, 28)) # 파이토치 텐서를 넘파이로 변환
         ax[0][i].imshow(img, cmap='gray')
         ax[0][i].set_xticks(()); ax[0][i].set_yticks(())
-        
+    
+    # 생성된 데이터 출력
     for i in range(5):
         img = np.reshape(decoded_data.data.cpu().numpy()[i], (28, 28))
         ax[1][i].imshow(img, cmap='gray')
@@ -124,11 +125,14 @@ def train(epoch, autoencoder, train_loader, device, optimizer, criterion, origin
             loss.backward()
             optimizer.step()
             
-            draw_decoder_output(origin_data, autoencoder, epoch, device)
+        draw_decoder_output(origin_data, autoencoder, epoch, device)
+    
+    return autoencoder
 
 
 def main():
-    epoch = 10
+    MODEL_SAVE_PATH = r"/workspace/Model_Implementation/GenerativeModel/AutoEncoder/autoencoder_models/autoencoder.pt"
+    epoch = 50
     batch_size = 64
     use_cuda = torch.cuda.is_available()
     device = torch.device('cuda:0' if use_cuda else 'cpu')
@@ -150,7 +154,8 @@ def main():
     origin_data = trainset.data[:5].view(-1, 28*28)
     origin_data = origin_data.type(torch.FloatTensor) / 255.
     
-    train(epoch, autoencoder, train_loader, device, optimizer, criterion, origin_data)
+    model = train(epoch, autoencoder, train_loader, device, optimizer, criterion, origin_data)
+    torch.save(model.state_dict(), MODEL_SAVE_PATH)
     
         
 if __name__ == '__main__':
