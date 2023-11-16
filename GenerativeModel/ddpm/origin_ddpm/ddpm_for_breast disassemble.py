@@ -430,6 +430,7 @@ class Unet(nn.Module):
             x_self_cond = default(x_self_cond, lambda: torch.zeros_like(x))
             x = torch.cat((x_self_cond, x), dim=1)
 
+        print(f"Input x.shape: {x.shape} / iter: {count}")
         x = self.init_conv(x)
         r = x.clone()
 
@@ -442,12 +443,14 @@ class Unet(nn.Module):
             print(f"x.shape: {x.shape} / iter: {count}")
             
             h.append(x)
+            print(f"h.len: {len(h)} / iter: {count}")
 
             x = block2(x, t)
             x = attn(x)
             h.append(x)
 
             x = downsample(x)
+            print(f"x_downsample.shape: {x.shape} / iter: {count}")
 
         x = self.mid_block1(x, t)
         x = self.mid_attn(x)
