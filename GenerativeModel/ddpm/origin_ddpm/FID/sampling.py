@@ -1,3 +1,4 @@
+import os
 import torch
 from torchvision.utils import save_image
 from tqdm.auto import tqdm
@@ -47,26 +48,19 @@ def sample_single_image(model, difusion_frame: DiffusionUtils, timestep, device,
 def main():
     TIMESTEP = 1000
     model_path = r"/workspace/256x256_model/256x256_60_full_model.pth"
-    img_save_path = r"./result.png"
+    # model_path = r"/workspace/128x128_model/99_full_model.pth"
+    img_save_path = r"/workspace/sampling_results/"
     img_size = 256
     
     device = 'cuda'
     model = torch.load(model_path, map_location=device)
     diffusion_utils = DiffusionUtils(total_timesteps=TIMESTEP)
     
-    sample_single_image(model, diffusion_utils, TIMESTEP, device, img_size, img_save_path)
+    for i in tqdm(range(10), desc='total sampling'):
+        save_path = os.path.join(img_save_path, f"{i}_{img_size}x{img_size}.png")
+        sample_single_image(model, diffusion_utils, TIMESTEP, device, img_size, save_path)
 
 
 
 if __name__ == '__main__':
     main()
-    # TIMESTEP = 1000
-    # model_path = r"/workspace/256x256_model/256x256_60_full_model.pth"
-    # img_save_path = r"./result.png"
-    # img_size = 256
-    
-    # device = 'cuda'
-    # model = torch.load(model_path, map_location=device)
-    # diffusion_utils = DiffusionUtils(total_timesteps=TIMESTEP)
-    
-    # sample_image(model, diffusion_utils, TIMESTEP, device, img_size, img_save_path)
