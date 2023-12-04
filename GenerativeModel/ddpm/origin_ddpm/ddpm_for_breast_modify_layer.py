@@ -330,7 +330,8 @@ class Unet(nn.Module):
                         block_klass(dim_in, dim_in, time_emb_dim=time_dim),
                         block_klass(dim_in, dim_in, time_emb_dim=time_dim),
                         Residual(PreNorm(dim_in, LinearAttention(dim_in))),
-                        downsample_or_conv,
+                        # downsample_or_conv,
+                        Downsample(dim_in, dim_out)
                     ]
                 )
             )
@@ -344,6 +345,11 @@ class Unet(nn.Module):
         self.mid_block1 = block_klass(mid_dim, mid_dim, time_emb_dim=time_dim)
         self.mid_attn = Residual(PreNorm(mid_dim, Attention(mid_dim)))
         self.mid_block2 = block_klass(mid_dim, mid_dim, time_emb_dim=time_dim)
+        
+        self.add_upsample = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode="nearest"),
+            nn.Conv2d(1024, 1024, 3, padding=1),
+        )
 
         for ind, (dim_in, dim_out) in enumerate(reversed(in_out)):
             is_last = ind == (len(in_out) - 1)
@@ -391,13 +397,15 @@ class Unet(nn.Module):
             x = block2(x, t)
             x = attn(x)
             h.append(x)
-
+            
             x = downsample(x)
 
         x = self.mid_block1(x, t)
         x = self.mid_attn(x)
         x = self.mid_block2(x, t)
-
+        
+        x = self.add_upsample(x)
+        
         for block1, block2, attn, upsample in self.ups:
             x = torch.cat((x, h.pop()), dim=1)
             x = block1(x, t)
