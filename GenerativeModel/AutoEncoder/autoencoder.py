@@ -12,6 +12,7 @@ import torchvision.models as models
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 
+
 class AutoEncoder(nn.Module):
     def __init__(self):
         super(AutoEncoder, self).__init__()
@@ -44,7 +45,24 @@ class AutoEncoder(nn.Module):
         return encoded, decoded
 
 
+class AutoEncoderConv(nn.Module):
+    def __init__(self):
+        super(AutoEncoderConv, self).__init__()
+        
+        self.encoder = nn.Sequential(
+            
+        )
+        
+    
+    def forward(self, x):
+        return NotImplemented
+
+
 def visualize_latent_variable(autoencoder, trainset, device):
+    """
+    data를 encoding한 후, 각 차원을 numpy행렬로 변환하여 시각화한다.
+    """
+    
     classes = {
         0: 'T-shirt/top',
         1: 'Trouser',
@@ -59,7 +77,8 @@ def visualize_latent_variable(autoencoder, trainset, device):
     }
     
     fig = plt.figure(figsize=(10, 8))
-    ax = Axes3D(fig)
+    ax = fig.add_subplot(111, projection='3d')
+    
     
     view_data = trainset.data[:200].view(-1, 28*28)
     view_data = view_data.type(torch.FloatTensor) / 255.
@@ -82,6 +101,7 @@ def visualize_latent_variable(autoencoder, trainset, device):
     ax.set_xlim(X.min(), X.max())
     ax.set_ylim(Y.min(), Y.max())
     ax.set_zlim(Z.min(), Z.max())
+    
     plt.savefig(f'/workspace/Model_Implementation/GenerativeModel/AutoEncoder/autoencoder_results/latent_variable.png')
 
 
@@ -130,13 +150,33 @@ def train(epoch, autoencoder, train_loader, device, optimizer, criterion, origin
     return autoencoder
 
 
-def main():
+def run_visualize():
+    MODEL_SAVE_PATH = r"/workspace/Model_Implementation/GenerativeModel/AutoEncoder/autoencoder_models/autoencoder.pt"
+    
+    autoencoder = AutoEncoder()
+    autoencoder.load_state_dict(torch.load(MODEL_SAVE_PATH))
+    autoencoder.eval()
+
+    trainset = datasets.FashionMNIST(
+        root='./data/',
+        train=True,
+        download=True,
+        transform=transforms.ToTensor()
+    )
+    
+    device = "cuda:5"
+    autoencoder.to(device)
+
+    visualize_latent_variable(autoencoder, trainset, device)
+
+
+def run_train():
     MODEL_SAVE_PATH = r"/workspace/Model_Implementation/GenerativeModel/AutoEncoder/autoencoder_models/autoencoder.pt"
     epoch = 50
     batch_size = 64
     use_cuda = torch.cuda.is_available()
-    device = torch.device('cuda:0' if use_cuda else 'cpu')
-    print("Using Devcie:", device)
+    device = torch.device('cuda:5' if use_cuda else 'cpu')
+    print("Using Device:", device)
     
     trainset = datasets.FashionMNIST(
         root='./data/',
@@ -156,8 +196,12 @@ def main():
     
     model = train(epoch, autoencoder, train_loader, device, optimizer, criterion, origin_data)
     torch.save(model.state_dict(), MODEL_SAVE_PATH)
+
+
+def main():
+    run_visualize()
     
-        
+
 if __name__ == '__main__':
     main()
     
