@@ -77,7 +77,7 @@ def visualize_latent_variable(autoencoder, trainset, device):
     }
     
     fig = plt.figure(figsize=(10, 8))
-    ax = fig.add_subplot(111, projection='3d')
+    ax = fig.add_subplot(111, projection='3d') # 출력이 안되어 원본 출처의 코드를 해당 코드로 변경하였다.
     
     
     view_data = trainset.data[:200].view(-1, 28*28)
