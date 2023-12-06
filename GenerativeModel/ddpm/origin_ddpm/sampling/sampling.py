@@ -4,7 +4,15 @@ from torchvision.utils import save_image
 from tqdm.auto import tqdm
 
 import ml_util
-from Model_Implementation.GenerativeModel.ddpm.origin_ddpm.ddpm_for_breast import (
+
+# NOTE: Origin ddpm
+# from Model_Implementation.GenerativeModel.ddpm.origin_ddpm.ddpm_for_breast import (
+#     Unet, DiffusionUtils, ForwardBetaSchedule, SinusoidalPositionEmbeddings, ResnetBlock, Block,
+#     WeightStandardizedConv2d, Residual, PreNorm, LinearAttention, Attention
+#     )
+
+# NOTE: Modify ddpm
+from Model_Implementation.GenerativeModel.ddpm.origin_ddpm.ddpm_for_breast_modify_layer import (
     Unet, DiffusionUtils, ForwardBetaSchedule, SinusoidalPositionEmbeddings, ResnetBlock, Block,
     WeightStandardizedConv2d, Residual, PreNorm, LinearAttention, Attention
     )
@@ -47,8 +55,7 @@ def sample_single_image(model, difusion_frame: DiffusionUtils, timestep, device,
 
 def main():
     TIMESTEP = 1000
-    model_path = r"/workspace/256x256_model/256x256_60_full_model.pth"
-    # model_path = r"/workspace/128x128_model/99_full_model.pth"
+    model_path = r"/workspace/256x256_model/modify_layer/99_full_model.pth"
     img_save_path = r"/workspace/sampling_results/"
     img_size = 256
     
