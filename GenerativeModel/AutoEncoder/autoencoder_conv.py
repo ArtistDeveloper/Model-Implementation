@@ -35,19 +35,33 @@ class AutoEncoderConv(nn.Module):
         )
         
         self.decoder = nn.Sequential(
-            # nn.ConvTranspose2d(512, 256, 3, )
-            nn.ConvTranspose2d(512, 256, 3, stride=2, padding=0, output_padding=0)
+            # 3x3 -> 7x7
+            nn.ConvTranspose2d(512, 256, 3, stride=2, padding=0, output_padding=0),
+            nn.ReLU(),
+            
+            # 7x7 -> ??
+            nn.ConvTranspose2d(256, 128, 3, stride=2, padding=0, output_padding=1),
+            nn.ReLU(),
+            
+            nn.ConvTranspose2d(128, 64, 3, stride=2, padding=0, output_padding=0),
+            nn.ReLU(),
         )
         
     
     def forward(self, x):
         encoded = self.encoder(x)
         decoded = self.decoder(encoded)
-        return encoded
+        return decoded
 
 
 def main():
-    return NotImplemented
+    model = AutoEncoderConv()
+    
+    tensor = torch.randn((1, 1, 28, 28))
+    
+    result = model(tensor)
+    print("result.shape: ", result.shape)
+    
 
 
 if __name__ == '__main__':
