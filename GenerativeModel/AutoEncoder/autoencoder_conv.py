@@ -19,38 +19,39 @@ class AutoEncoderConv(nn.Module):
         
         self.encoder = nn.Sequential(
             # 28x28 -> 14x14
-            nn.Conv2d(1, 64, 3, stride=1, padding=1),
-            nn.Conv2d(64, 128, 3, stride=2, padding=1),
+            nn.Conv2d(1, 32, 3, stride=1, padding=1),
+            nn.Conv2d(32, 64, 3, stride=2, padding=1),
             nn.ReLU(),
             
             # 14x14 -> 7x7
-            nn.Conv2d(128, 128, 3, stride=1, padding=1),
-            nn.Conv2d(128, 256, 3, stride=2, padding=1),
+            nn.Conv2d(64, 64, 3, stride=1, padding=1),
+            nn.Conv2d(64, 128, 3, stride=2, padding=1),
             nn.ReLU(),
             
             # 7x7 -> 3x3
-            nn.Conv2d(256, 256, 3, stride=1, padding=1),
-            nn.Conv2d(256, 512, 4, stride=2, padding=1),
+            nn.Conv2d(128, 128, 3, stride=1, padding=1),
+            nn.Conv2d(128, 256, 4, stride=2, padding=1),
             nn.ReLU(),
         )
         
         self.decoder = nn.Sequential(
             # 3x3 -> 7x7
-            nn.Conv2d(512, 512, 3, stride=1, padding=1),
-            nn.ConvTranspose2d(512, 256, 3, stride=2, padding=0, output_padding=0),
+            nn.Conv2d(256, 256, 3, stride=1, padding=1),
+            nn.ConvTranspose2d(256, 128, 3, stride=2, padding=0, output_padding=0),
             nn.ReLU(),
             
             # 7x7 -> 14x14
-            nn.Conv2d(256, 256, 3, stride=1, padding=1),
-            nn.ConvTranspose2d(256, 128, 3, stride=2, padding=1, output_padding=1),
+            nn.Conv2d(128, 64, 3, stride=1, padding=1),
+            nn.ConvTranspose2d(64, 32, 3, stride=2, padding=1, output_padding=1),
             nn.ReLU(),
             
             # 14x14 -> 28x28
-            nn.Conv2d(128, 128, 3, stride=1, padding=1),
-            nn.ConvTranspose2d(128, 64, 3, stride=2, padding=1, output_padding=1),
+            nn.Conv2d(32, 32, 3, stride=1, padding=1),
+            nn.ConvTranspose2d(32, 16, 3, stride=2, padding=1, output_padding=1),
             nn.ReLU(),
             
-            nn.Conv2d(64, 1, 3, stride=1, padding=1),
+            nn.Conv2d(16, 1, 3, stride=1, padding=1),
+            nn.Sigmoid()  # 변경된 부분
         )
         
     
