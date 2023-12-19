@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 
 
 
-
 class Generator(nn.Module):
     def __init__(self):
         super().__init__()
@@ -181,6 +180,8 @@ def train(model_dis, model_gen, train_loader, device):
             loss_real = loss_func(out_dis, y_batch_real)
             
             # 가짜 이미지 판별
+            # Discriminator가 가짜이미지로 분류한 값과, y_batch_fake의 값의 차이를 줄임으로
+            # 가짜이미지를 가짜이미지로 분류할 수 있는 성능을 올림
             out_dis = model_dis(out_gen.detach(), gen_label)
             loss_fake = loss_func(out_dis, y_batch_fake)
 

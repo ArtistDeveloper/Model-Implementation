@@ -20,11 +20,8 @@ if __name__=="__main__":
     test_obj = Test()
     label = 16
     
-    result = test_obj(torch.IntTensor(label))
+    label_emb = test_obj(torch.IntTensor(label))
     
-    print("result shape: ", result.shape)
-    print(result)
-    
-    result = np.prod((1, 28, 28))
-    print("np: ", result)
+    print("label_emb: ", label_emb.shape)
+    print(label_emb)
     
