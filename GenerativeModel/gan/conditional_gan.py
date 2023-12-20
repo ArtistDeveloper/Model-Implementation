@@ -157,7 +157,7 @@ def train(model_dis, model_gen, train_loader, device):
             y_batch_real = torch.Tensor(batch_size, 1).fill_(1.0).to(device)
             y_batch_fake = torch.Tensor(batch_size, 1).fill_(0.0).to(device)
             
-            # Generator
+            # Generator 학습 시작
             model_gen.zero_grad()
             noise = torch.randn(batch_size, 100).to(device)
             gen_label = torch.randint(0, 10, (batch_size, )).to(device)
@@ -168,11 +168,12 @@ def train(model_dis, model_gen, train_loader, device):
             # 가짜 이미지 판별
             dis_result = model_dis(generated_img, gen_label)
             
+            # discriminator가 1에 가까운 출력을 낼 수 있도록 generator를 학습.
             loss_gen = loss_func(dis_result, y_batch_real)
             loss_gen.backward()
             opt_gen.step()
             
-            # Discriminator
+            # Discriminator 학습 시작
             model_dis.zero_grad()
             
             # 진짜 이미지 판별
@@ -184,7 +185,8 @@ def train(model_dis, model_gen, train_loader, device):
             # 가짜이미지를 가짜이미지로 분류할 수 있는 성능을 올림
             out_dis = model_dis(generated_img.detach(), gen_label)
             loss_fake = loss_func(dis_result, y_batch_fake)
-
+            
+            # 진짜 이미지 판별 loss와 가짜 이미지 판별 loss를 더한 뒤 2를 나누어 loss값을 사용한다. (GAN loss를 구현할 떄는 이와 같은 방식을 따름)
             loss_dis = (loss_real + loss_fake) / 2
             loss_dis.backward()
             opt_dis.step()
