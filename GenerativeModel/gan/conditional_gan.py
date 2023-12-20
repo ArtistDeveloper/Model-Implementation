@@ -139,7 +139,7 @@ def train(model_dis, model_gen, train_loader, device):
     opt_gen = optim.Adam(model_gen.parameters(), lr=lr, betas=(beta1,beta2))
     
     nz = 100
-    num_epochs = 100
+    num_epochs = 10
     
     loss_history = {'gen': [], 'dis': []}
     
@@ -163,12 +163,12 @@ def train(model_dis, model_gen, train_loader, device):
             gen_label = torch.randint(0, 10, (batch_size, )).to(device)
             
             # 가짜 이미지 생성
-            out_gen = model_gen(noise, gen_label)
+            generated_img = model_gen(noise, gen_label)
             
             # 가짜 이미지 판별
-            out_dis = model_dis(out_gen, gen_label)
+            dis_result = model_dis(generated_img, gen_label)
             
-            loss_gen = loss_func(out_dis, y_batch_real)
+            loss_gen = loss_func(dis_result, y_batch_real)
             loss_gen.backward()
             opt_gen.step()
             
@@ -176,14 +176,14 @@ def train(model_dis, model_gen, train_loader, device):
             model_dis.zero_grad()
             
             # 진짜 이미지 판별
-            out_dis = model_dis(x_batch, y_batch)
-            loss_real = loss_func(out_dis, y_batch_real)
+            dis_result = model_dis(x_batch, y_batch)
+            loss_real = loss_func(dis_result, y_batch_real)
             
             # 가짜 이미지 판별
             # Discriminator가 가짜이미지로 분류한 값과, y_batch_fake의 값의 차이를 줄임으로
             # 가짜이미지를 가짜이미지로 분류할 수 있는 성능을 올림
-            out_dis = model_dis(out_gen.detach(), gen_label)
-            loss_fake = loss_func(out_dis, y_batch_fake)
+            out_dis = model_dis(generated_img.detach(), gen_label)
+            loss_fake = loss_func(dis_result, y_batch_fake)
 
             loss_dis = (loss_real + loss_fake) / 2
             loss_dis.backward()
@@ -202,7 +202,7 @@ def train(model_dis, model_gen, train_loader, device):
 
 
 def main():
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:5' if torch.cuda.is_available() else 'cpu')
     img_save_path = r"/workspace/Model_Implementation/GenerativeModel/gan/results"
     
     # Set Data path
