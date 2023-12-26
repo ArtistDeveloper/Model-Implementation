@@ -68,7 +68,7 @@ class AutoEncoderConv(nn.Module):
         
         # Encoder
         self.encoder = nn.Sequential(
-            nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(2,2),
             
@@ -81,7 +81,7 @@ class AutoEncoderConv(nn.Module):
             nn.ConvTranspose2d(32, 16, kernel_size = 2, stride = 2, padding=0),
             nn.ReLU(),
             
-            nn.ConvTranspose2d(16, 3, kernel_size = 2, stride = 2, padding=0),
+            nn.ConvTranspose2d(16, 1, kernel_size = 2, stride = 2, padding=0),
             nn.Sigmoid()
         )
         
@@ -141,7 +141,7 @@ def train(epoch, model, train_loader, device, optimizer, criterion, origin_data)
 
 def main():
     MODEL_SAVE_PATH = r"/workspace/Model_Implementation/GenerativeModel/AutoEncoder/autoencoder_models/autoencoder_conv.pt"
-    epoch = 50
+    epoch = 10
     batch_size = 64
     use_cuda = torch.cuda.is_available()
     device = torch.device('cuda:5' if use_cuda else 'cpu')
@@ -156,7 +156,7 @@ def main():
     train_loader = DataLoader(dataset=trainset, batch_size=batch_size, shuffle=True)
     
     model = AutoEncoderConv().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.MSELoss()
     
     origin_data = trainset.data[:5].unsqueeze(dim=1)
