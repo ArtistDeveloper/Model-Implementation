@@ -139,7 +139,7 @@ def train(model_dis, model_gen, train_loader, device):
     opt_gen = optim.Adam(model_gen.parameters(), lr=lr, betas=(beta1,beta2))
     
     nz = 100
-    num_epochs = 10
+    num_epochs = 100
     
     loss_history = {'gen': [], 'dis': []}
     
@@ -184,7 +184,7 @@ def train(model_dis, model_gen, train_loader, device):
             # Discriminator가 가짜이미지로 분류한 값과, y_batch_fake의 값의 차이를 줄임으로
             # 가짜이미지를 가짜이미지로 분류할 수 있는 성능을 올림
             out_dis = model_dis(generated_img.detach(), gen_label)
-            loss_fake = loss_func(dis_result, y_batch_fake)
+            loss_fake = loss_func(out_dis, y_batch_fake)
             
             # 진짜 이미지 판별 loss와 가짜 이미지 판별 loss를 더한 뒤 2를 나누어 loss값을 사용한다. (GAN loss를 구현할 떄는 이와 같은 방식을 따름)
             loss_dis = (loss_real + loss_fake) / 2
