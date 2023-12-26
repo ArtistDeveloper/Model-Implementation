@@ -24,6 +24,7 @@ class Generator(nn.Module):
         self.input_size = (1, 28, 28)
         
         # Noise와 label을 결합하는 용도인 label embedding matrix를 생성
+        # 해당 embedding 값 또한 학습 가능한 파라미터임에 유의.
         self.label_emb = nn.Embedding(self.num_classes, self.num_classes) # num embedding, embedding_dim
         
         # Generator
@@ -44,7 +45,7 @@ class Generator(nn.Module):
         )
     
     def forward(self, noise, labels):
-        # noise와 label의 결합
+        # noise와 label의 결합     
         gen_input = torch.cat((self.label_emb(labels), noise), -1)
         x = self.gen(gen_input)
         x = x.view(x.size(0), *self.input_size)
