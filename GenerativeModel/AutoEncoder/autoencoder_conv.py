@@ -13,58 +13,106 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 
 
-# class AutoEncoderConv(nn.Module):
-#     def __init__(self):
-#         super(AutoEncoderConv, self).__init__()
+class AutoEncoderConv0(nn.Module):
+    def __init__(self):
+        super(AutoEncoderConv0, self).__init__()
         
-#         self.encoder = nn.Sequential(
-#             # 28x28 -> 14x14
-#             nn.Conv2d(1, 32, 3, stride=1, padding=1),
-#             nn.Conv2d(32, 64, 3, stride=2, padding=1),
-#             nn.ReLU(),
+        self.encoder = nn.Sequential(
+            # 28x28 -> 14x14
+            nn.Conv2d(1, 16, 3, stride=1, padding=1),  # 32 -> 16
+            nn.Conv2d(16, 32, 3, stride=2, padding=1),  # 64 -> 32
+            nn.ReLU(),
             
-#             # 14x14 -> 7x7
-#             nn.Conv2d(64, 64, 3, stride=1, padding=1),
-#             nn.Conv2d(64, 128, 3, stride=2, padding=1),
-#             nn.ReLU(),
+            # 14x14 -> 7x7
+            nn.Conv2d(32, 32, 3, stride=1, padding=1),
+            nn.Conv2d(32, 64, 3, stride=2, padding=1),  # 128 -> 64
+            nn.ReLU(),
             
-#             # 7x7 -> 3x3
-#             nn.Conv2d(128, 128, 3, stride=1, padding=1),
-#             nn.Conv2d(128, 256, 4, stride=2, padding=1),
-#             nn.ReLU(),
-#         )
+            # 7x7 -> 3x3
+            nn.Conv2d(64, 64, 3, stride=1, padding=1),
+            nn.Conv2d(64, 128, 4, stride=2, padding=1),  # 256 -> 128
+            nn.ReLU(),
+        )
         
-#         self.decoder = nn.Sequential(
-#             # 3x3 -> 7x7
-#             nn.Conv2d(256, 256, 3, stride=1, padding=1),
-#             nn.ConvTranspose2d(256, 128, 3, stride=2, padding=0, output_padding=0),
-#             nn.ReLU(),
+        self.decoder = nn.Sequential(
+            # 3x3 -> 7x7
+            nn.Conv2d(128, 128, 3, stride=1, padding=1),
+            nn.ConvTranspose2d(128, 64, 3, stride=2, padding=0, output_padding=0),
+            nn.ReLU(),
             
-#             # 7x7 -> 14x14
-#             nn.Conv2d(128, 64, 3, stride=1, padding=1),
-#             nn.ConvTranspose2d(64, 32, 3, stride=2, padding=1, output_padding=1),
-#             nn.ReLU(),
+            # 7x7 -> 14x14
+            nn.Conv2d(64, 32, 3, stride=1, padding=1),
+            nn.ConvTranspose2d(32, 16, 3, stride=2, padding=1, output_padding=1),
+            nn.ReLU(),
             
-#             # 14x14 -> 28x28
-#             nn.Conv2d(32, 32, 3, stride=1, padding=1),
-#             nn.ConvTranspose2d(32, 16, 3, stride=2, padding=1, output_padding=1),
-#             nn.ReLU(),
+            # 14x14 -> 28x28
+            nn.Conv2d(16, 16, 3, stride=1, padding=1),
+            nn.ConvTranspose2d(16, 8, 3, stride=2, padding=1, output_padding=1),  # 32 -> 8
+            nn.ReLU(),
             
-#             nn.Conv2d(16, 1, 3, stride=1, padding=1),
-#             nn.Sigmoid()  # 변경된 부분
-#         )
+            nn.Conv2d(8, 1, 3, stride=1, padding=1),
+            nn.Sigmoid()
+        )
+        
+    def forward(self, x):
+        encoded = self.encoder(x)
+        decoded = self.decoder(encoded)
+        return encoded, decoded
+    
+
+
+class AutoEncoderConv1(nn.Module):
+    def __init__(self):
+        super(AutoEncoderConv1, self).__init__()
+        
+        self.encoder = nn.Sequential(
+            # 28x28 -> 14x14
+            nn.Conv2d(1, 32, 3, stride=1, padding=1),
+            nn.Conv2d(32, 64, 3, stride=2, padding=1),
+            nn.ReLU(),
+            
+            # 14x14 -> 7x7
+            nn.Conv2d(64, 64, 3, stride=1, padding=1),
+            nn.Conv2d(64, 128, 3, stride=2, padding=1),
+            nn.ReLU(),
+            
+            # 7x7 -> 3x3
+            nn.Conv2d(128, 128, 3, stride=1, padding=1),
+            nn.Conv2d(128, 256, 4, stride=2, padding=1),
+            nn.ReLU(),
+        )
+        
+        self.decoder = nn.Sequential(
+            # 3x3 -> 7x7
+            nn.Conv2d(256, 256, 3, stride=1, padding=1),
+            nn.ConvTranspose2d(256, 128, 3, stride=2, padding=0, output_padding=0),
+            nn.ReLU(),
+            
+            # 7x7 -> 14x14
+            nn.Conv2d(128, 64, 3, stride=1, padding=1),
+            nn.ConvTranspose2d(64, 32, 3, stride=2, padding=1, output_padding=1),
+            nn.ReLU(),
+            
+            # 14x14 -> 28x28
+            nn.Conv2d(32, 32, 3, stride=1, padding=1),
+            nn.ConvTranspose2d(32, 16, 3, stride=2, padding=1, output_padding=1),
+            nn.ReLU(),
+            
+            nn.Conv2d(16, 1, 3, stride=1, padding=1),
+            nn.Sigmoid()  # 변경된 부분
+        )
         
     
-#     def forward(self, x):
-#         encoded = self.encoder(x)
-#         decoded = self.decoder(encoded)
-#         return encoded, decoded
+    def forward(self, x):
+        encoded = self.encoder(x)
+        decoded = self.decoder(encoded)
+        return encoded, decoded
 
 
-class AutoEncoderConv(nn.Module):
+class AutoEncoderConv2(nn.Module):
     # TODO: 28x28에서 돌아가도록 수정하기 -> 만약 뒤에도 안된다면 이건 데이터 전달이 잘못된지도 확인이 필요할지도..
     def __init__(self):
-        super(AutoEncoderConv, self).__init__()
+        super(AutoEncoderConv2, self).__init__()
         
         # Encoder
         self.encoder = nn.Sequential(
@@ -141,7 +189,7 @@ def train(epoch, model, train_loader, device, optimizer, criterion, origin_data)
 
 def main():
     MODEL_SAVE_PATH = r"/workspace/Model_Implementation/GenerativeModel/AutoEncoder/autoencoder_models/autoencoder_conv.pt"
-    epoch = 10
+    epoch = 30
     batch_size = 64
     use_cuda = torch.cuda.is_available()
     device = torch.device('cuda:5' if use_cuda else 'cpu')
@@ -155,7 +203,7 @@ def main():
     
     train_loader = DataLoader(dataset=trainset, batch_size=batch_size, shuffle=True)
     
-    model = AutoEncoderConv().to(device)
+    model = AutoEncoderConv0().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.MSELoss()
     
