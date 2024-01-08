@@ -140,6 +140,54 @@ class AutoEncoderConv2(nn.Module):
         return encoded, decoded
 
 
+class DisableAutoEncoderConv(nn.Module):
+    def __init__(self):
+        super(DisableAutoEncoderConv, self).__init__()
+        
+        self.encoder = nn.Sequential(
+            # 28x28 -> 14x14
+            nn.Conv2d(1, 64, 3, stride=1, padding=1),
+            nn.Conv2d(64, 128, 3, stride=2, padding=1),
+            nn.ReLU(),
+            
+            # 14x14 -> 7x7
+            nn.Conv2d(128, 128, 3, stride=1, padding=1),
+            nn.Conv2d(128, 256, 3, stride=2, padding=1),
+            nn.ReLU(),
+            
+            # 7x7 -> 3x3
+            nn.Conv2d(256, 256, 3, stride=1, padding=1),
+            nn.Conv2d(256, 512, 4, stride=2, padding=1),
+            nn.ReLU(),
+        )
+        
+        self.decoder = nn.Sequential(
+            # 3x3 -> 7x7
+            nn.Conv2d(512, 512, 3, stride=1, padding=1),
+            nn.ConvTranspose2d(512, 256, 3, stride=2, padding=0, output_padding=0),
+            nn.ReLU(),
+            
+            # 7x7 -> 14x14
+            nn.Conv2d(256, 256, 3, stride=1, padding=1),
+            nn.ConvTranspose2d(256, 128, 3, stride=2, padding=1, output_padding=1),
+            nn.ReLU(),
+            
+            # 14x14 -> 28x28
+            nn.Conv2d(128, 128, 3, stride=1, padding=1),
+            nn.ConvTranspose2d(128, 64, 3, stride=2, padding=1, output_padding=1),
+            nn.ReLU(),
+            
+            nn.Conv2d(64, 1, 3, stride=1, padding=1),
+            nn.Sigmoid()
+        )
+        
+    
+    def forward(self, x):
+        encoded = self.encoder(x)
+        decoded = self.decoder(encoded)
+        return encoded, decoded
+
+
 def draw_decoder_output(origin_data, autoenocder, epoch, device): 
     test_x = origin_data.to(device)
     _, decoded_data = autoenocder(test_x)
@@ -203,7 +251,7 @@ def main():
     
     train_loader = DataLoader(dataset=trainset, batch_size=batch_size, shuffle=True)
     
-    model = AutoEncoderConv0().to(device)
+    model = AutoEncoderConv2().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.MSELoss()
     
